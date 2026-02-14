@@ -7,4 +7,6 @@ dist/
 .env
 .env.local
 .DS_Store
-bun.lock
+# Only ignore bun.lock in subdirectories (root bun.lock is the project lockfile)
+packages/*/bun.lock
+.opencode/bun.lock

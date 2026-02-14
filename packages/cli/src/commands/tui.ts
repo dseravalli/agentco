@@ -1,18 +1,15 @@
 import { Command } from "commander";
 import { execFileSync } from "node:child_process";
-import { resolve, dirname } from "node:path";
-import { fileURLToPath } from "node:url";
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
+import { resolve } from "node:path";
 
 export function registerTuiCommand(program: Command): void {
   program
     .command("tui")
     .description("Launch the interactive terminal UI dashboard")
     .action(() => {
-      // __dirname is packages/cli/src/commands (dev) or packages/cli/dist/commands (built)
+      // import.meta.dir is packages/cli/src/commands
       // Go up to packages/ then into tui/
-      const tuiDir = resolve(__dirname, "../../../tui");
+      const tuiDir = resolve(import.meta.dir, "../../../tui");
 
       try {
         execFileSync("bun", ["run", "src/index.tsx"], {

@@ -1,14 +1,12 @@
 {
   "name": "agentco",
   "private": true,
+  "workspaces": ["packages/*"],
   "scripts": {
-    "dev": "pnpm -r --parallel dev",
-    "build": "pnpm -r build",
-    "lint": "pnpm -r lint",
-    "typecheck": "pnpm -r typecheck",
-    "cli": "tsx packages/cli/src/index.ts"
-  },
-  "engines": {
-    "node": ">=20"
+    "dev": "bun run --parallel --filter '@agentco/orchestrator' --filter '@agentco/tui' dev",
+    "build": "bun run --workspaces build",
+    "lint": "bun run --workspaces lint",
+    "typecheck": "bun run --workspaces typecheck",
+    "cli": "bun run packages/cli/src/index.ts"
   }
 }

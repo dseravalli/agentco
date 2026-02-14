@@ -3,14 +3,14 @@ import type { WSContext } from "hono/ws";
 import { subscribe } from "../services/event-monitor.js";
 import type { WSEvent } from "../types.js";
 
-export function createWSRoutes(
-  upgradeWebSocket: (handler: (c: any) => {
-    onOpen?: (evt: Event, ws: WSContext) => void;
-    onMessage?: (evt: MessageEvent, ws: WSContext) => void;
-    onClose?: (evt: CloseEvent, ws: WSContext) => void;
-    onError?: (evt: Event, ws: WSContext) => void;
-  }) => any
-) {
+type UpgradeWebSocket = (handler: (c: any) => {
+  onOpen?: (evt: Event, ws: WSContext) => void;
+  onMessage?: (evt: MessageEvent, ws: WSContext) => void;
+  onClose?: (evt: CloseEvent, ws: WSContext) => void;
+  onError?: (evt: Event, ws: WSContext) => void;
+}) => any;
+
+export function createWSRoutes(upgradeWebSocket: UpgradeWebSocket) {
   const wsRoutes = new Hono();
 
   wsRoutes.get(
@@ -32,7 +32,6 @@ export function createWSRoutes(
         },
 
         onMessage(evt, ws) {
-          // Clients can send ping/pong or filter subscriptions in the future
           try {
             const data = JSON.parse(evt.data as string);
             if (data.type === "ping") {

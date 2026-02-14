@@ -4,9 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
+    "dev": "bun run --watch src/index.ts",
     "build": "tsc",
-    "start": "node dist/index.js",
+    "start": "bun run src/index.ts",
     "typecheck": "tsc --noEmit",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
@@ -15,10 +15,7 @@
   },
   "dependencies": {
     "hono": "^4.7.0",
-    "@hono/node-server": "^1.13.0",
-    "@hono/node-ws": "^1.1.0",
     "drizzle-orm": "^0.38.0",
-    "better-sqlite3": "^11.8.0",
     "@opencode-ai/sdk": "^0.15.0",
     "execa": "^9.5.0",
     "pg": "^8.13.0",
@@ -26,11 +23,9 @@
     "nanoid": "^5.1.0"
   },
   "devDependencies": {
-    "@types/better-sqlite3": "^7.6.12",
+    "@types/bun": "latest",
     "@types/pg": "^8.11.0",
-    "@types/node": "^22.0.0",
     "typescript": "^5.7.0",
-    "tsx": "^4.19.0",
     "drizzle-kit": "^0.30.0"
   }
 }

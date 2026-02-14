@@ -1,8 +1,7 @@
-import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
-import { createNodeWebSocket } from "@hono/node-ws";
+import { upgradeWebSocket, websocket } from "hono/bun";
 import { projectRoutes } from "./routes/projects.js";
 import { taskRoutes } from "./routes/tasks.js";
 import { alertRoutes } from "./routes/alerts.js";
@@ -12,7 +11,6 @@ import { ORCHESTRATOR_PORT } from "./types.js";
 import { reconnectActiveTasks } from "./services/lifecycle.js";
 
 const app = new Hono();
-const { injectWebSocket, upgradeWebSocket } = createNodeWebSocket({ app });
 
 app.use("*", logger());
 app.use(
@@ -37,14 +35,14 @@ app.route("/api", wsRoutes);
 
 app.route("/", proxyRoutes);
 
-const server = serve(
-  { fetch: app.fetch, port: ORCHESTRATOR_PORT },
-  (info) => {
-    console.log(`AgentCo orchestrator running on http://localhost:${info.port}`);
-    reconnectActiveTasks().catch((err) => {
-      console.error("[reconnect] failed:", err);
-    });
-  }
-);
+console.log(`AgentCo orchestrator running on http://localhost:${ORCHESTRATOR_PORT}`);
 
-injectWebSocket(server);
+reconnectActiveTasks().catch((err) => {
+  console.error("[reconnect] failed:", err);
+});
+
+export default {
+  port: ORCHESTRATOR_PORT,
+  fetch: app.fetch,
+  websocket,
+};
