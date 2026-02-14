@@ -14,3 +14,4 @@
   - review the .agentco.json thing
 - Linear integration make sense or no?
 - TUI model selection?
+- should probably just run entire project on bun instead of node/pnpm since TUI requires bun
