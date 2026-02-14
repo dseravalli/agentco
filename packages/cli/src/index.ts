@@ -2,6 +2,7 @@
 import { Command } from "commander";
 import { registerProjectCommands } from "./commands/project.js";
 import { registerTaskCommands } from "./commands/task.js";
+import { registerTuiCommand } from "./commands/tui.js";
 
 const program = new Command();
 
@@ -12,5 +13,6 @@ program
 
 registerProjectCommands(program);
 registerTaskCommands(program);
+registerTuiCommand(program);
 
 program.parse();
