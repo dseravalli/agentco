@@ -1,5 +1,8 @@
 # AgentCo
 
+> [!WARNING]
+> AgentCo is alpha software under heavy development.
+
 Self-hosted orchestration system for managing multiple [OpenCode](https://github.com/anomalyco/opencode) coding agents working on tasks across multiple projects simultaneously. Automates the complete task lifecycle from git branch management through PR submission.
 
 ## Overview
@@ -104,3 +107,4 @@ bun run db:push       # Apply schema changes
 bun run db:generate   # Generate migrations
 bun run db:studio     # Open Drizzle Studio
 ```
+
