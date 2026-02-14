@@ -6,3 +6,11 @@
 - what is the deal with abort vs cleanup exactly
 - answering questions in TUI seemed janky
 - make statuses prettier
+- openclaw skill/integration
+- creating/managing tasks without starting them immediately
+- popping open vim to write markdown tasks from TUI
+- terminal bells / notifications
+- cleanup DESIGN.md
+  - review the .agentco.json thing
+- Linear integration make sense or no?
+- TUI model selection?
