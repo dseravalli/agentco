@@ -93,14 +93,5 @@ export class ApiClient {
     await this.request(`/api/alerts/${id}/read`, { method: "POST" })
   }
 
-  async respondToAlert(
-    id: string,
-    action: "approve" | "deny",
-    answers?: string[][]
-  ): Promise<void> {
-    await this.request(`/api/alerts/${id}/respond`, {
-      method: "POST",
-      body: JSON.stringify({ action, answers }),
-    })
-  }
+
 }

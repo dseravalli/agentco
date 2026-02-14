@@ -16,7 +16,6 @@ const AGENTCO_URL = process.env.AGENTCO_URL || "http://localhost:8080"
 type Mode =
   | { type: "normal" }
   | { type: "confirm"; action: string; onConfirm: () => void }
-  | { type: "respond"; alertId: string; input: string }
 
 const ATTACHABLE: TaskStatus[] = ["agent_running", "needs_input", "agent_done", "preview_live"]
 
@@ -40,8 +39,6 @@ function MetadataRow(props: { label: string; value: string; valueFg?: string }) 
 function AlertRow(props: {
   alert: Alert
   isActive: boolean
-  mode: Mode
-  onStartRespond: () => void
 }) {
   const icon = () => {
     switch (props.alert.type) {
@@ -71,58 +68,13 @@ function AlertRow(props: {
     }
   }
 
-  const isResponding = () =>
-    props.mode.type === "respond" && props.mode.alertId === props.alert.id
-
   return (
-    <box flexDirection="column" width="100%">
-      <box
-        flexDirection="row"
-        width="100%"
-        gap={1}
-        backgroundColor={props.isActive ? colors.highlight : undefined}
-      >
-        <text fg={fg()}>{icon()}</text>
-        <text fg={props.isActive ? colors.highlightText : colors.text} flexGrow={1}>
-          {props.alert.message}
-        </text>
-        <text fg={colors.textMuted}>{timeAgo(props.alert.createdAt)}</text>
-      </box>
-      <Show when={props.isActive && !props.alert.read}>
-        <Show when={props.alert.type === "needs_permission" || props.alert.type === "needs_input"}>
-          <box flexDirection="row" gap={2} paddingLeft={2}>
-            <text>
-              <span fg={colors.key}>a</span>
-              <span fg={colors.keyLabel}> approve</span>
-            </text>
-            <text>
-              <span fg={colors.key}>d</span>
-              <span fg={colors.keyLabel}> deny</span>
-            </text>
-          </box>
-        </Show>
-        <Show when={props.alert.type === "needs_question"}>
-          <Show
-            when={isResponding()}
-            fallback={
-              <box paddingLeft={2}>
-                <text>
-                  <span fg={colors.key}>t</span>
-                  <span fg={colors.keyLabel}> type response</span>
-                </text>
-              </box>
-            }
-          >
-            <box flexDirection="row" gap={1} paddingLeft={2}>
-              <text fg={colors.accent}>{">"}</text>
-              <text fg={colors.text}>
-                {(props.mode as { input: string }).input}
-              </text>
-              <text fg={colors.textMuted}>_</text>
-            </box>
-          </Show>
-        </Show>
-      </Show>
+    <box flexDirection="row" width="100%" gap={1} backgroundColor={props.isActive ? colors.highlight : undefined}>
+      <text fg={fg()}>{icon()}</text>
+      <text fg={props.isActive ? colors.highlightText : colors.text} flexGrow={1}>
+        {props.alert.message}
+      </text>
+      <text fg={colors.textMuted}>{timeAgo(props.alert.createdAt)}</text>
     </box>
   )
 }
@@ -149,7 +101,6 @@ export function TaskDetail(props: { taskId: string }) {
   )
 
   const unreadAlerts = createMemo(() => taskAlerts().filter((a) => !a.read))
-  const activeAlert = createMemo(() => taskAlerts()[alertCursor()])
 
   function showMessage(msg: string) {
     setMessage(msg)
@@ -187,19 +138,6 @@ export function TaskDetail(props: { taskId: string }) {
     showMessage("Opened tmux window")
   }
 
-  async function handleAlertAction(action: "approve" | "deny") {
-    const alert = activeAlert()
-    if (!alert || alert.read) return
-    await doAction(action, () => api.respondToAlert(alert.id, action))
-  }
-
-  async function handleQuestionSubmit(input: string) {
-    const alert = activeAlert()
-    if (!alert) return
-    await doAction("respond", () => api.respondToAlert(alert.id, "approve", [[input]]))
-    setMode({ type: "normal" })
-  }
-
   useKeyboard((key) => {
     const m = mode()
 
@@ -211,29 +149,6 @@ export function TaskDetail(props: { taskId: string }) {
       } else {
         setMode({ type: "normal" })
         showMessage("Cancelled")
-      }
-      return
-    }
-
-    // Text input mode for question responses
-    if (m.type === "respond") {
-      if (key.name === "escape") {
-        setMode({ type: "normal" })
-        return
-      }
-      if (key.name === "return") {
-        if (m.input.trim()) {
-          handleQuestionSubmit(m.input.trim())
-        }
-        return
-      }
-      if (key.name === "backspace") {
-        setMode({ type: "respond", alertId: m.alertId, input: m.input.slice(0, -1) })
-        return
-      }
-      if (key.sequence && key.sequence.length === 1 && !key.ctrl && !key.meta) {
-        setMode({ type: "respond", alertId: m.alertId, input: m.input + key.sequence })
-        return
       }
       return
     }
@@ -256,23 +171,6 @@ export function TaskDetail(props: { taskId: string }) {
     }
     if (key.name === "k" || key.name === "up") {
       setAlertCursor((c) => Math.max(c - 1, 0))
-    }
-
-    // Alert actions on active alert
-    const alert = activeAlert()
-    if (alert && !alert.read) {
-      if (key.name === "a" && (alert.type === "needs_permission" || alert.type === "needs_input")) {
-        handleAlertAction("approve")
-        return
-      }
-      if (key.name === "d" && (alert.type === "needs_permission" || alert.type === "needs_input")) {
-        handleAlertAction("deny")
-        return
-      }
-      if (key.name === "t" && alert.type === "needs_question") {
-        setMode({ type: "respond", alertId: alert.id, input: "" })
-        return
-      }
     }
 
     // Task lifecycle actions
@@ -318,13 +216,6 @@ export function TaskDetail(props: { taskId: string }) {
         { key: "any", label: "cancel" },
       ]
     }
-    if (m.type === "respond") {
-      return [
-        { key: "enter", label: "send" },
-        { key: "esc", label: "cancel" },
-      ]
-    }
-
     const t = task()
     const hints: KeyHint[] = [{ key: "esc", label: "back" }]
 
@@ -405,10 +296,6 @@ export function TaskDetail(props: { taskId: string }) {
                       <AlertRow
                         alert={alert}
                         isActive={i() === alertCursor()}
-                        mode={mode()}
-                        onStartRespond={() =>
-                          setMode({ type: "respond", alertId: alert.id, input: "" })
-                        }
                       />
                     )}
                   </For>
