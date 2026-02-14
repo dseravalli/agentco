@@ -29,15 +29,12 @@ projectRoutes.post("/", async (c) => {
   }
 
   const configPath = path.join(body.rootPath, ".agentco.json");
-  let config: AgentCoConfig;
-  let configCreated = false;
+  let config: AgentCoConfig | null = null;
   try {
     const content = await fs.readFile(configPath, "utf-8");
     config = JSON.parse(content);
   } catch {
-    config = buildDefaultConfig(body.name);
-    await fs.writeFile(configPath, JSON.stringify(config, null, 2) + "\n");
-    configCreated = true;
+    // No .agentco.json found — project will use runtime defaults
   }
 
   const existing = findProject(eq(schema.projects.slug, slug));
@@ -51,7 +48,7 @@ projectRoutes.post("/", async (c) => {
     .returning()
     .get();
 
-  return c.json({ ...project, configCreated }, 201);
+  return c.json(project, 201);
 });
 
 projectRoutes.get("/:id", (c) => {
@@ -90,20 +87,3 @@ projectRoutes.post("/:id/sync", async (c) => {
 
   return c.json(updated);
 });
-
-function buildDefaultConfig(projectName: string): AgentCoConfig {
-  return {
-    copyOnWorktree: [".env"],
-    envOverrides: {
-      PORT: "auto",
-    },
-    devPreview: {
-      command: "npm run dev",
-      portEnvVar: "PORT",
-    },
-    agent: {
-      defaultModel: "anthropic/claude-sonnet-4-20250514",
-      planMode: true,
-    },
-  };
-}

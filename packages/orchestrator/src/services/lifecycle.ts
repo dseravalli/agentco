@@ -172,12 +172,12 @@ export async function startTask(taskId: string): Promise<void> {
 
     updateTaskStatus(taskId, "agent_running");
 
-    const model = config?.agent?.defaultModel
-      ? parseModelId(config.agent.defaultModel)
-      : undefined;
+    const DEFAULT_MODEL = "anthropic/claude-opus-4-6";
+    const modelString = config?.agent?.defaultModel || DEFAULT_MODEL;
+    const model = parseModelId(modelString);
 
     const agent = "plan";
-    log(taskId, `sending prompt to ${agent} agent${model ? ` (model: ${config?.agent?.defaultModel})` : ""}`);
+    log(taskId, `sending prompt to ${agent} agent (model: ${modelString})`);
     await opencode.sendPrompt(opencodePort, sessionId, task.description, { model, agent });
 
     // Monitor SSE events
@@ -295,7 +295,7 @@ export async function cleanupTask(taskId: string): Promise<void> {
   if (task.worktreePath) {
     log(taskId, `stopping dev preview and opencode`);
     await devPreview.stopDevPreview(task.worktreePath).catch(() => {});
-    await opencode.stopOpencode(task.worktreePath).catch(() => {});
+    await opencode.stopOpencode(task.worktreePath, task.opencodePort ?? undefined).catch(() => {});
   }
 
   if (task.databaseName && config?.database?.connectionString) {

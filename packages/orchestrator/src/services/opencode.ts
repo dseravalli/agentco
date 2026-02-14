@@ -39,17 +39,54 @@ export async function startOpencode(
 
   const healthy = await waitForHealth(`http://127.0.0.1:${port}`, 30_000);
   if (!healthy) {
-    await stopOpencode(worktreePath);
+    await stopOpencode(worktreePath, port);
     throw new Error(`OpenCode failed to start on port ${port}`);
   }
 }
 
-export async function stopOpencode(worktreePath: string): Promise<void> {
-  const proc = processes.get(worktreePath);
-  if (proc) {
-    proc.kill("SIGTERM");
-    processes.delete(worktreePath);
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+export async function stopOpencode(worktreePath: string, port?: number): Promise<void> {
+  processes.delete(worktreePath);
+
+  if (port) {
+    // Kill the server (LISTEN) and any attached clients (ESTABLISHED),
+    // but never kill our own process.
+    await killProcessOnPort(port, "-sTCP:LISTEN");
+    await killProcessOnPort(port, "-sTCP:ESTABLISHED");
+  }
+}
+
+async function killProcessOnPort(port: number, stateFilter: string): Promise<void> {
+  const self = process.pid;
+  try {
+    const { stdout } = await execa("lsof", ["-ti", `tcp:${port}`, stateFilter]);
+    const pids = stdout
+      .trim()
+      .split("\n")
+      .filter(Boolean)
+      .map(Number)
+      .filter((pid) => pid !== self);
+
+    if (pids.length === 0) return;
+
+    for (const pid of pids) {
+      try {
+        process.kill(pid, "SIGTERM");
+      } catch {
+        // Already dead
+      }
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+
+    for (const pid of pids) {
+      try {
+        process.kill(pid, "SIGKILL");
+      } catch {
+        // Already dead
+      }
+    }
+  } catch {
+    // lsof found nothing — port is already free
   }
 }
 

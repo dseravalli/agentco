@@ -8,6 +8,22 @@ importers:
 
   .: {}
 
+  packages/cli:
+    dependencies:
+      commander:
+        specifier: ^13.1.0
+        version: 13.1.0
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.19.11
+      tsx:
+        specifier: ^4.0.0
+        version: 4.21.0
+      typescript:
+        specifier: ^5.7.0
+        version: 5.9.3
+
   packages/dashboard:
     dependencies:
       '@tanstack/react-query':
@@ -1110,6 +1126,10 @@ packages:
 
   chownr@1.1.4:
     resolution: {integrity: sha512-jJ0bqzaylmJtVnNgzTeSOs8DPavpbYgEr/b0YL8/2GO3xJEhInFmhKMUnEJQjZumK7KXGFhUy89PrsJWlakBVg==}
+
+  commander@13.1.0:
+    resolution: {integrity: sha512-/rFeCpNJQbhSZjGVwO9RFV3xPqbnERS8MmIQzCtD/zl6gpJuV/bMLuN92oG3F7d8oDEHHRrujSXNUr8fpjntKw==}
+    engines: {node: '>=18'}
 
   convert-source-map@2.0.0:
     resolution: {integrity: sha512-Kvp459HrV2FEJ1CAsi1Ku+MY3kasH19TFykTz2xWmMeq6bk2NU3XXvfJ+Q61m0xktWwt+1HSYf3JZsTms3aRJg==}
@@ -2511,6 +2531,8 @@ snapshots:
   caniuse-lite@1.0.30001769: {}
 
   chownr@1.1.4: {}
+
+  commander@13.1.0: {}
 
   convert-source-map@2.0.0: {}
 
