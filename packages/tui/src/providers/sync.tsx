@@ -8,8 +8,16 @@ import {
   type Accessor,
 } from "solid-js"
 import { createStore, produce } from "solid-js/store"
-import type { Project, Task, Alert, WSEvent } from "../lib/types.js"
+import type { Project, Task, Alert, WSEvent, AlertType } from "../lib/types.js"
 import { useSDK } from "./sdk.js"
+import { sendNotification } from "../lib/notify.js"
+
+const NOTIFY_ALERT_TYPES: Set<AlertType> = new Set([
+  "needs_permission",
+  "needs_question",
+  "agent_complete",
+  "error",
+])
 
 export type SyncStatus = "loading" | "connected" | "disconnected" | "error"
 
@@ -86,6 +94,11 @@ export function SyncProvider(props: { children: JSX.Element }) {
             }
           })
         )
+        if (NOTIFY_ALERT_TYPES.has(event.alert.type)) {
+          const task = state.tasks.find((t) => t.id === event.taskId)
+          const title = task ? `AgentCo - ${task.title}` : "AgentCo"
+          sendNotification(title, event.alert.message)
+        }
         break
     }
   }
