@@ -44,10 +44,10 @@ export class ApiClient {
     return this.request(`/api/tasks/${id}`)
   }
 
-  async createTask(projectId: string, title: string, description: string, model?: string): Promise<Task> {
+  async createTask(projectId: string, description: string, model?: string): Promise<Task> {
     return this.request("/api/tasks", {
       method: "POST",
-      body: JSON.stringify({ projectId, title, description, model }),
+      body: JSON.stringify({ projectId, description, model }),
     })
   }
 

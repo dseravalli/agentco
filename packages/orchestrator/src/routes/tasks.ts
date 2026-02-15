@@ -4,6 +4,7 @@ import { db, schema, findTask, findProject } from "../db/index.js";
 import slugify from "slugify";
 import { nanoid } from "nanoid";
 import * as lifecycle from "../services/lifecycle.js";
+import { generateTitle } from "../services/title.js";
 
 export const taskRoutes = new Hono();
 
@@ -26,29 +27,30 @@ taskRoutes.get("/", (c) => {
 taskRoutes.post("/", async (c) => {
   const body = await c.req.json<{
     projectId: string;
-    title: string;
     description: string;
     model?: string;
   }>();
 
-  if (!body.projectId || !body.title || !body.description) {
-    return c.json({ error: "projectId, title, and description are required" }, 400);
+  if (!body.projectId || !body.description) {
+    return c.json({ error: "projectId and description are required" }, 400);
   }
 
   const project = findProject(eq(schema.projects.id, body.projectId));
   if (!project) return c.json({ error: "Project not found" }, 404);
 
   const slug =
-    slugify(body.title, { lower: true, strict: true }).slice(0, 40) +
+    slugify(body.description, { lower: true, strict: true }).slice(0, 40) +
     "-" +
     nanoid(6);
+
+  const title = await generateTitle(body.description);
 
   const task = db
     .insert(schema.tasks)
     .values({
       projectId: body.projectId,
       slug,
-      title: body.title,
+      title,
       description: body.description,
       model: body.model || null,
     })

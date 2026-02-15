@@ -8,13 +8,12 @@ export function registerTaskCommands(program: Command) {
   const task = program.command("task").description("Manage tasks");
 
   task
-    .command("create <project> <title> [description]")
+    .command("create <project> [description]")
     .description("Create and start a new task")
     .option("-f, --file <path>", "Read task description from a markdown file")
     .action(
       async (
         projectName: string,
-        title: string,
         description: string | undefined,
         opts: { file?: string }
       ) => {
@@ -41,7 +40,6 @@ export function registerTaskCommands(program: Command) {
 
           const result = await client.createTask(
             project.id,
-            title,
             taskDescription
           );
           console.log(

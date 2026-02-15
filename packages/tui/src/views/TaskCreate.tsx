@@ -1,5 +1,5 @@
 import { useKeyboard } from "@opentui/solid"
-import { createSignal, createMemo, onMount, Show, For } from "solid-js"
+import { createSignal, createMemo, onMount, Show } from "solid-js"
 import { useSync } from "../providers/sync.js"
 import { useSDK } from "../providers/sdk.js"
 import { useRoute } from "../providers/route.js"
@@ -10,8 +10,8 @@ import { colors } from "../lib/theme.js"
 
 const AGENTCO_URL = process.env.AGENTCO_URL || "http://localhost:8080"
 
-type Field = "project" | "model" | "title" | "description"
-const FIELDS: Field[] = ["project", "model", "title", "description"]
+type Field = "project" | "model" | "description"
+const FIELDS: Field[] = ["project", "model", "description"]
 
 export function TaskCreate() {
   const { state, status, refresh } = useSync()
@@ -23,7 +23,6 @@ export function TaskCreate() {
   const [projectIndex, setProjectIndex] = createSignal(0)
   const [modelIndex, setModelIndex] = createSignal(0)
   const [models, setModels] = createSignal<string[]>([])
-  const [title, setTitle] = createSignal("")
   const [description, setDescription] = createSignal("")
   const [message, setMessage] = createSignal("")
   const [submitting, setSubmitting] = createSignal(false)
@@ -68,16 +67,16 @@ export function TaskCreate() {
       showMessage("No project selected")
       return
     }
-    if (!title().trim()) {
-      showMessage("Title is required")
-      setActiveField("title")
+    if (!description().trim()) {
+      showMessage("Description is required")
+      setActiveField("description")
       return
     }
 
     setSubmitting(true)
     try {
       const model = selectedModel()
-      const task = await api.createTask(proj.id, title().trim(), description().trim(), model)
+      const task = await api.createTask(proj.id, description().trim(), model)
       if (andStart) {
         await api.startTask(task.id)
         toast.show("Task created and started")
@@ -160,21 +159,13 @@ export function TaskCreate() {
       return
     }
 
-    // Text input fields (title and description)
-    const [getter, setter] = field === "title"
-      ? [title, setTitle] as const
-      : [description, setDescription] as const
-
+    // Text input field (description)
     if (key.name === "backspace") {
-      setter((v) => v.slice(0, -1))
-      return
-    }
-    if (key.name === "return" && field === "title") {
-      nextField()
+      setDescription((v) => v.slice(0, -1))
       return
     }
     if (key.sequence && key.sequence.length === 1 && !key.ctrl && !key.meta) {
-      setter((v) => v + key.sequence)
+      setDescription((v) => v + key.sequence)
       return
     }
   })
@@ -269,28 +260,6 @@ export function TaskCreate() {
             </box>
           </box>
 
-          {/* Title input */}
-          <box flexDirection="row" width="100%" gap={1}>
-            <FieldLabel label="Title" field="title" />
-            <box flexDirection="row" flexGrow={1}>
-              <Show
-                when={title()}
-                fallback={
-                  <text fg={activeField() === "title" ? colors.textMuted : colors.textMuted}>
-                    {activeField() === "title" ? "_" : "enter a title..."}
-                  </text>
-                }
-              >
-                <text fg={activeField() === "title" ? colors.highlightText : colors.text}>
-                  {title()}
-                </text>
-                <Show when={activeField() === "title"}>
-                  <text fg={colors.textMuted}>_</text>
-                </Show>
-              </Show>
-            </box>
-          </box>
-
           {/* Description input */}
           <box flexDirection="row" width="100%" gap={1}>
             <FieldLabel label="Description" field="description" />
@@ -299,7 +268,7 @@ export function TaskCreate() {
                 when={description()}
                 fallback={
                   <text fg={activeField() === "description" ? colors.textMuted : colors.textMuted}>
-                    {activeField() === "description" ? "_" : "(optional)"}
+                    {activeField() === "description" ? "_" : "describe the task..."}
                   </text>
                 }
               >

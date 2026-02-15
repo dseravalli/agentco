@@ -85,6 +85,18 @@ export function SyncProvider(props: { children: JSX.Element }) {
         })
         break
 
+      case "task:title_changed":
+        setState(
+          produce((s) => {
+            const task = s.tasks.find((t) => t.id === event.taskId)
+            if (task) {
+              task.title = event.title
+              task.updatedAt = new Date().toISOString()
+            }
+          })
+        )
+        break
+
       case "task:alert":
         setState(
           produce((s) => {

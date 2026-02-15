@@ -7,7 +7,6 @@
 ### TUI
 
 - review and improve kb shortcuts - enter to attach for one
-- generate task titles from task prompt itself
 - closing tmux pane should kill `opencode attach` process if i forget to use /exit
 - review cleanup job
 - popping open $EDITOR from TUI to write task descriptions

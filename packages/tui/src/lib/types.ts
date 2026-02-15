@@ -63,6 +63,7 @@ export interface Alert {
 
 export type WSEvent =
   | { type: "task:status_changed"; taskId: string; status: TaskStatus }
+  | { type: "task:title_changed"; taskId: string; title: string }
   | { type: "task:alert"; taskId: string; alert: Alert }
   | { type: "task:log"; taskId: string; message: string }
   | { type: "agent:event"; taskId: string; event: unknown }

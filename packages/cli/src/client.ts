@@ -78,12 +78,11 @@ export async function listTasks(projectId?: string): Promise<Task[]> {
 
 export async function createTask(
   projectId: string,
-  title: string,
   description: string
 ): Promise<Task> {
   return request("/api/tasks", {
     method: "POST",
-    body: JSON.stringify({ projectId, title, description }),
+    body: JSON.stringify({ projectId, description }),
   });
 }
 
