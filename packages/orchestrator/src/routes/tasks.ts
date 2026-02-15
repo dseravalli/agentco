@@ -28,6 +28,7 @@ taskRoutes.post("/", async (c) => {
     projectId: string;
     title: string;
     description: string;
+    model?: string;
   }>();
 
   if (!body.projectId || !body.title || !body.description) {
@@ -49,6 +50,7 @@ taskRoutes.post("/", async (c) => {
       slug,
       title: body.title,
       description: body.description,
+      model: body.model || null,
     })
     .returning()
     .get();

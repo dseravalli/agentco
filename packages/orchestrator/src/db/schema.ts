@@ -31,6 +31,7 @@ export const tasks = sqliteTable("tasks", {
   opencodeSessionId: text("opencode_session_id"),
   devPreviewPort: integer("dev_preview_port"),
   databaseName: text("database_name"),
+  model: text("model"),
   prUrl: text("pr_url"),
   error: text("error"),
   createdAt: text("created_at").default(sql`(datetime('now'))`),

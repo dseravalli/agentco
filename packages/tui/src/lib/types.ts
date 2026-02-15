@@ -37,6 +37,7 @@ export interface Task {
   slug: string
   title: string
   description: string
+  model: string | null
   status: TaskStatus
   branchName: string | null
   worktreePath: string | null

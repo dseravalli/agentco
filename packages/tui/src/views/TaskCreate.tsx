@@ -1,5 +1,5 @@
 import { useKeyboard } from "@opentui/solid"
-import { createSignal, createMemo, Show, For } from "solid-js"
+import { createSignal, createMemo, onMount, Show, For } from "solid-js"
 import { useSync } from "../providers/sync.js"
 import { useSDK } from "../providers/sdk.js"
 import { useRoute } from "../providers/route.js"
@@ -10,8 +10,8 @@ import { colors } from "../lib/theme.js"
 
 const AGENTCO_URL = process.env.AGENTCO_URL || "http://localhost:8080"
 
-type Field = "project" | "title" | "description"
-const FIELDS: Field[] = ["project", "title", "description"]
+type Field = "project" | "model" | "title" | "description"
+const FIELDS: Field[] = ["project", "model", "title", "description"]
 
 export function TaskCreate() {
   const { state, status, refresh } = useSync()
@@ -21,6 +21,8 @@ export function TaskCreate() {
 
   const [activeField, setActiveField] = createSignal<Field>("project")
   const [projectIndex, setProjectIndex] = createSignal(0)
+  const [modelIndex, setModelIndex] = createSignal(0)
+  const [models, setModels] = createSignal<string[]>([])
   const [title, setTitle] = createSignal("")
   const [description, setDescription] = createSignal("")
   const [message, setMessage] = createSignal("")
@@ -28,6 +30,18 @@ export function TaskCreate() {
 
   const projects = createMemo(() => state.projects)
   const selectedProject = createMemo(() => projects()[projectIndex()])
+  const selectedModel = createMemo(() => models()[modelIndex()])
+
+  onMount(async () => {
+    try {
+      const result = await api.listModels()
+      if (result.length > 0) {
+        setModels(result)
+      }
+    } catch {
+      setModels(["anthropic/claude-opus-4-6"])
+    }
+  })
 
   function showMessage(msg: string) {
     setMessage(msg)
@@ -62,7 +76,8 @@ export function TaskCreate() {
 
     setSubmitting(true)
     try {
-      const task = await api.createTask(proj.id, title().trim(), description().trim())
+      const model = selectedModel()
+      const task = await api.createTask(proj.id, title().trim(), description().trim(), model)
       if (andStart) {
         await api.startTask(task.id)
         toast.show("Task created and started")
@@ -128,6 +143,23 @@ export function TaskCreate() {
       return
     }
 
+    // Model selector
+    if (field === "model") {
+      if (key.name === "j" || key.name === "down" || key.name === "right") {
+        setModelIndex((i) => Math.min(i + 1, models().length - 1))
+        return
+      }
+      if (key.name === "k" || key.name === "up" || key.name === "left") {
+        setModelIndex((i) => Math.max(i - 1, 0))
+        return
+      }
+      if (key.name === "return") {
+        nextField()
+        return
+      }
+      return
+    }
+
     // Text input fields (title and description)
     const [getter, setter] = field === "title"
       ? [title, setTitle] as const
@@ -162,8 +194,9 @@ export function TaskCreate() {
     }
     const hints: KeyHint[] = [{ key: "esc", label: "cancel" }]
     hints.push({ key: "tab", label: "next field" })
-    if (activeField() === "project") {
-      hints.push({ key: "j/k", label: "select project" })
+    const field = activeField()
+    if (field === "project" || field === "model") {
+      hints.push({ key: "j/k", label: field === "project" ? "select project" : "select model" })
     }
     hints.push(
       { key: "ctrl+s", label: "create & start" },
@@ -199,17 +232,38 @@ export function TaskCreate() {
             <FieldLabel label="Project" field="project" />
             <box flexDirection="row" gap={1}>
               <Show when={activeField() === "project"}>
-                <text fg={colors.textMuted}>{"<"}</text>
+                <text fg={colors.textMuted}>{"◀"}</text>
               </Show>
               <text fg={activeField() === "project" ? colors.highlightText : colors.text}>
                 {selectedProject()?.name || "---"}
               </text>
               <Show when={activeField() === "project"}>
-                <text fg={colors.textMuted}>{">"}</text>
+                <text fg={colors.textMuted}>{"▶"}</text>
               </Show>
               <Show when={activeField() === "project" && projects().length > 1}>
                 <text fg={colors.textMuted}>
                   ({projectIndex() + 1}/{projects().length})
+                </text>
+              </Show>
+            </box>
+          </box>
+
+          {/* Model selector */}
+          <box flexDirection="row" width="100%" gap={1}>
+            <FieldLabel label="Model" field="model" />
+            <box flexDirection="row" gap={1}>
+              <Show when={activeField() === "model"}>
+                <text fg={colors.textMuted}>{"◀"}</text>
+              </Show>
+              <text fg={activeField() === "model" ? colors.highlightText : colors.text}>
+                {selectedModel() || "loading..."}
+              </text>
+              <Show when={activeField() === "model"}>
+                <text fg={colors.textMuted}>{"▶"}</text>
+              </Show>
+              <Show when={activeField() === "model" && models().length > 1}>
+                <text fg={colors.textMuted}>
+                  ({modelIndex() + 1}/{models().length})
                 </text>
               </Show>
             </box>

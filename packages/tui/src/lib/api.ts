@@ -44,11 +44,15 @@ export class ApiClient {
     return this.request(`/api/tasks/${id}`)
   }
 
-  async createTask(projectId: string, title: string, description: string): Promise<Task> {
+  async createTask(projectId: string, title: string, description: string, model?: string): Promise<Task> {
     return this.request("/api/tasks", {
       method: "POST",
-      body: JSON.stringify({ projectId, title, description }),
+      body: JSON.stringify({ projectId, title, description, model }),
     })
+  }
+
+  async listModels(): Promise<string[]> {
+    return this.request("/api/config/models")
   }
 
   async startTask(id: string): Promise<void> {

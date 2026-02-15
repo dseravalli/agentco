@@ -174,7 +174,7 @@ export async function startTask(taskId: string): Promise<void> {
     updateTaskStatus(taskId, "agent_running");
 
     const DEFAULT_MODEL = "anthropic/claude-opus-4-6";
-    const modelString = config?.agent?.defaultModel || DEFAULT_MODEL;
+    const modelString = task.model || config?.agent?.defaultModel || DEFAULT_MODEL;
     const model = parseModelId(modelString);
 
     const agent = "plan";

@@ -5,6 +5,7 @@ import { upgradeWebSocket, websocket } from "hono/bun";
 import { projectRoutes } from "./routes/projects.js";
 import { taskRoutes } from "./routes/tasks.js";
 import { alertRoutes } from "./routes/alerts.js";
+import { configRoutes } from "./routes/config.js";
 import { createWSRoutes } from "./routes/ws.js";
 import { proxyRoutes } from "./routes/proxy.js";
 import { ORCHESTRATOR_PORT } from "./types.js";
@@ -29,6 +30,7 @@ app.get("/api/health", (c) => {
 app.route("/api/projects", projectRoutes);
 app.route("/api/tasks", taskRoutes);
 app.route("/api/alerts", alertRoutes);
+app.route("/api/config", configRoutes);
 
 const wsRoutes = createWSRoutes(upgradeWebSocket);
 app.route("/api", wsRoutes);
