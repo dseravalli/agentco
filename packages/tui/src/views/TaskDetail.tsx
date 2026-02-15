@@ -8,6 +8,7 @@ import { KeyHints, type KeyHint } from "../components/KeyHints.js"
 import { StatusBadge } from "../components/StatusBadge.js"
 import { colors } from "../lib/theme.js"
 import { timeAgo } from "../lib/time.js"
+import { execFileSync } from "node:child_process"
 import { isTmux, openTmuxWindow } from "../lib/tmux.js"
 import type { Alert, Task, TaskStatus } from "../lib/types.js"
 
@@ -200,6 +201,16 @@ export function TaskDetail(props: { taskId: string }) {
       doAction("create PR", () => api.createPR(t.id).then(() => {}))
       return
     }
+    if (key.name === "o" && t.prUrl) {
+      const cmd = process.platform === "darwin" ? "open" : "xdg-open"
+      try {
+        execFileSync(cmd, [t.prUrl])
+        showMessage("Opened PR in browser")
+      } catch {
+        showMessage("Failed to open browser")
+      }
+      return
+    }
     if (key.name === "d") {
       if (t.status === "archived" || t.status === "pending") {
         confirmAction("Delete task?", () => {
@@ -237,6 +248,7 @@ export function TaskDetail(props: { taskId: string }) {
         hints.push({ key: "x", label: "abort" })
       if (t.status === "failed" || t.status === "aborted") hints.push({ key: "r", label: "retry" })
       if (t.status === "agent_done") hints.push({ key: "p", label: "pr" })
+      if (t.prUrl) hints.push({ key: "o", label: "open pr" })
       hints.push({ key: "d", label: t.status === "archived" || t.status === "pending" ? "delete" : "cleanup" })
     }
 

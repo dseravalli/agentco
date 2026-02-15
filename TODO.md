@@ -2,7 +2,7 @@
 
 ## TUI
 
-- command to open PR in browser
+- improve home page UI
 - review and improve kb shortcuts
 - review cleanup job
 
