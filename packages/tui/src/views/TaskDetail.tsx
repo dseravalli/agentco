@@ -164,7 +164,7 @@ export function TaskDetail(props: { taskId: string }) {
       back()
       return
     }
-    if (key.name === "q" || (key.ctrl && key.name === "c")) {
+    if (key.ctrl && key.name === "c") {
       process.exit(0)
     }
 
@@ -243,7 +243,6 @@ export function TaskDetail(props: { taskId: string }) {
     if (taskAlerts().length > 0) {
       hints.push({ key: "j/k", label: "alerts" })
     }
-    hints.push({ key: "q", label: "quit" })
     return hints
   })
 

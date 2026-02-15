@@ -6,12 +6,12 @@
 
 ### TUI
 
-- review and improve kb shortcuts - enter to attach for one
-- closing tmux pane should kill `opencode attach` process if i forget to use /exit
-- review cleanup job
-- popping open $EDITOR from TUI to write task descriptions
-- pop open browser to see PR with a kb cmd
+- closing tmux pane with `<leader>x` should kill `opencode attach` process
+- ability to open `$EDITOR` from TUI to write task descriptions
+- command to open PR in browser
 - highlighting text should copy just like opencode does it
+- review and improve kb shortcuts
+- review cleanup job
 
 ### Integrations
 

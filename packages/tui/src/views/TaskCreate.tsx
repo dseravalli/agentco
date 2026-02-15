@@ -222,15 +222,12 @@ export function TaskCreate() {
           <box flexDirection="row" width="100%" gap={1}>
             <FieldLabel label="Project" field="project" />
             <box flexDirection="row" gap={1}>
-              <Show when={activeField() === "project"}>
-                <text fg={colors.textMuted}>{"◀"}</text>
+              <Show when={activeField() === "project" && projects().length > 1}>
+                <text fg={colors.textMuted}>{"▲▼"}</text>
               </Show>
               <text fg={activeField() === "project" ? colors.highlightText : colors.text}>
                 {selectedProject()?.name || "---"}
               </text>
-              <Show when={activeField() === "project"}>
-                <text fg={colors.textMuted}>{"▶"}</text>
-              </Show>
               <Show when={activeField() === "project" && projects().length > 1}>
                 <text fg={colors.textMuted}>
                   ({projectIndex() + 1}/{projects().length})
@@ -243,15 +240,12 @@ export function TaskCreate() {
           <box flexDirection="row" width="100%" gap={1}>
             <FieldLabel label="Model" field="model" />
             <box flexDirection="row" gap={1}>
-              <Show when={activeField() === "model"}>
-                <text fg={colors.textMuted}>{"◀"}</text>
+              <Show when={activeField() === "model" && models().length > 1}>
+                <text fg={colors.textMuted}>{"▲▼"}</text>
               </Show>
               <text fg={activeField() === "model" ? colors.highlightText : colors.text}>
                 {selectedModel() || "loading..."}
               </text>
-              <Show when={activeField() === "model"}>
-                <text fg={colors.textMuted}>{"▶"}</text>
-              </Show>
               <Show when={activeField() === "model" && models().length > 1}>
                 <text fg={colors.textMuted}>
                   ({modelIndex() + 1}/{models().length})

@@ -20,6 +20,11 @@ export function TaskList() {
   const [cursor, setCursor] = createSignal(0)
   const [filter, setFilter] = createSignal("")
   const [filterActive, setFilterActive] = createSignal(false)
+  const [actionInProgress, setActionInProgress] = createSignal<string | null>(null)
+  const [mode, setMode] = createSignal<
+    | { type: "normal" }
+    | { type: "confirm"; action: string; onConfirm: () => void }
+  >({ type: "normal" })
 
   const projectMap = createMemo(() => {
     const map = new Map<string, string>()
@@ -73,13 +78,20 @@ export function TaskList() {
   }
 
   async function doAction(label: string, fn: () => Promise<void>) {
+    setActionInProgress(label)
     try {
       await fn()
       showMessage(`${label}: ok`)
       await refresh()
     } catch (err) {
       showMessage(`${label}: ${(err as Error).message}`)
+    } finally {
+      setActionInProgress(null)
     }
+  }
+
+  function confirmAction(action: string, onConfirm: () => void) {
+    setMode({ type: "confirm", action, onConfirm })
   }
 
   function handleAttach() {
@@ -95,6 +107,20 @@ export function TaskList() {
   }
 
   useKeyboard((key) => {
+    if (actionInProgress()) return
+
+    const m = mode()
+    if (m.type === "confirm") {
+      if (key.name === "y" || key.name === "return") {
+        m.onConfirm()
+        setMode({ type: "normal" })
+      } else {
+        setMode({ type: "normal" })
+        showMessage("Cancelled")
+      }
+      return
+    }
+
     if (filterActive()) {
       if (key.name === "escape") {
         setFilterActive(false)
@@ -119,7 +145,7 @@ export function TaskList() {
     }
 
     // Normal mode
-    if (key.name === "q" || (key.ctrl && key.name === "c")) {
+    if (key.ctrl && key.name === "c") {
       process.exit(0)
     }
     if (key.name === "j" || key.name === "down") {
@@ -160,7 +186,7 @@ export function TaskList() {
         return
       }
       if (key.name === "x" && t.status !== "archived" && t.status !== "aborted" && t.status !== "failed") {
-        doAction("abort", () => api.abortTask(t.id))
+        confirmAction("Abort task?", () => doAction("abort", () => api.abortTask(t.id)))
         return
       }
     }
@@ -174,6 +200,19 @@ export function TaskList() {
   })
 
   const keyHints = createMemo((): KeyHint[] => {
+    const action = actionInProgress()
+    if (action) {
+      return [{ key: "...", label: action }]
+    }
+
+    const m = mode()
+    if (m.type === "confirm") {
+      return [
+        { key: "y/enter", label: "confirm" },
+        { key: "any", label: "cancel" },
+      ]
+    }
+
     if (filterActive()) {
       return [
         { key: "esc", label: "cancel" },
@@ -195,7 +234,6 @@ export function TaskList() {
     hints.push(
       { key: "c", label: "create" },
       { key: "/", label: "filter" },
-      { key: "q", label: "quit" },
     )
     return hints
   })
@@ -262,6 +300,12 @@ export function TaskList() {
               )
             }}
           </For>
+        </Show>
+        <Show when={mode().type === "confirm"}>
+          <text fg={colors.warning}>{(mode() as { action: string }).action}</text>
+        </Show>
+        <Show when={actionInProgress()}>
+          {(action) => <text fg={colors.accent}>{action()}...</text>}
         </Show>
         <Show when={message()}>
           <text fg={colors.textDim}>{message()}</text>
