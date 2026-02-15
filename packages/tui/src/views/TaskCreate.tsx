@@ -1,5 +1,9 @@
-import { useKeyboard } from "@opentui/solid"
+import { useKeyboard, useRenderer } from "@opentui/solid"
 import { createSignal, createMemo, onMount, Show } from "solid-js"
+import { spawnSync } from "node:child_process"
+import { writeFileSync, readFileSync, unlinkSync } from "node:fs"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
 import { useSync } from "../providers/sync.js"
 import { useSDK } from "../providers/sdk.js"
 import { useRoute } from "../providers/route.js"
@@ -18,18 +22,25 @@ export function TaskCreate() {
   const { api } = useSDK()
   const { back, replace } = useRoute()
   const toast = useToast()
+  const renderer = useRenderer()
 
   const [activeField, setActiveField] = createSignal<Field>("project")
   const [projectIndex, setProjectIndex] = createSignal(0)
   const [modelIndex, setModelIndex] = createSignal(0)
   const [models, setModels] = createSignal<string[]>([])
   const [description, setDescription] = createSignal("")
+  const [editorUsed, setEditorUsed] = createSignal(false)
   const [message, setMessage] = createSignal("")
   const [submitting, setSubmitting] = createSignal(false)
 
   const projects = createMemo(() => state.projects)
   const selectedProject = createMemo(() => projects()[projectIndex()])
   const selectedModel = createMemo(() => models()[modelIndex()])
+  const descriptionPreview = createMemo(() => {
+    const lines = description().split("\n").filter(l => l.trim())
+    if (lines.length <= 1) return description()
+    return `${lines[0]} (+${lines.length - 1} more lines)`
+  })
 
   onMount(async () => {
     try {
@@ -45,6 +56,32 @@ export function TaskCreate() {
   function showMessage(msg: string) {
     setMessage(msg)
     setTimeout(() => setMessage(""), 3000)
+  }
+
+  function openEditor() {
+    const editor = process.env.EDITOR || process.env.VISUAL || "vi"
+    const tmpFile = join(tmpdir(), `agentco-task-${Date.now()}.md`)
+
+    try {
+      writeFileSync(tmpFile, description())
+      renderer.suspend()
+
+      const result = spawnSync(editor, [tmpFile], { stdio: "inherit" })
+
+      renderer.resume()
+
+      if (result.status === 0) {
+        setDescription(readFileSync(tmpFile, "utf-8"))
+        setEditorUsed(true)
+      } else {
+        showMessage("Editor exited with an error")
+      }
+    } catch (err) {
+      renderer.resume()
+      showMessage(`Failed to open editor: ${(err as Error).message}`)
+    } finally {
+      try { unlinkSync(tmpFile) } catch {}
+    }
   }
 
   function nextField() {
@@ -80,11 +117,13 @@ export function TaskCreate() {
       if (andStart) {
         await api.startTask(task.id)
         toast.show("Task created and started")
+        await refresh()
+        replace({ name: "task-list" })
       } else {
         toast.show("Task created")
+        await refresh()
+        replace({ name: "task-detail", taskId: task.id }, [{ name: "task-list" }])
       }
-      await refresh()
-      replace({ name: "task-detail", taskId: task.id }, [{ name: "task-list" }])
     } catch (err) {
       showMessage(`Error: ${(err as Error).message}`)
       setSubmitting(false)
@@ -160,6 +199,11 @@ export function TaskCreate() {
     }
 
     // Text input field (description)
+    if (key.ctrl && key.name === "e") {
+      openEditor()
+      return
+    }
+    if (editorUsed()) return
     if (key.name === "backspace") {
       setDescription((v) => v.slice(0, -1))
       return
@@ -188,6 +232,9 @@ export function TaskCreate() {
     const field = activeField()
     if (field === "project" || field === "model") {
       hints.push({ key: "j/k", label: field === "project" ? "select project" : "select model" })
+    }
+    if (field === "description") {
+      hints.push({ key: "ctrl+e", label: "editor" })
     }
     hints.push(
       { key: "ctrl+s", label: "create & start" },
@@ -261,15 +308,15 @@ export function TaskCreate() {
               <Show
                 when={description()}
                 fallback={
-                  <text fg={activeField() === "description" ? colors.textMuted : colors.textMuted}>
-                    {activeField() === "description" ? "_" : "describe the task..."}
+                  <text fg={colors.textMuted}>
+                    {activeField() === "description" && !editorUsed() ? "_" : "ctrl+e to open editor"}
                   </text>
                 }
               >
                 <text fg={activeField() === "description" ? colors.highlightText : colors.text}>
-                  {description()}
+                  {descriptionPreview()}
                 </text>
-                <Show when={activeField() === "description"}>
+                <Show when={activeField() === "description" && !editorUsed()}>
                   <text fg={colors.textMuted}>_</text>
                 </Show>
               </Show>
