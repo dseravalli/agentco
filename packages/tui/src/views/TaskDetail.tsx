@@ -86,6 +86,7 @@ export function TaskDetail(props: { taskId: string }) {
   const [mode, setMode] = createSignal<Mode>({ type: "normal" })
   const [alertCursor, setAlertCursor] = createSignal(0)
   const [message, setMessage] = createSignal("")
+  const [actionInProgress, setActionInProgress] = createSignal<string | null>(null)
 
   const task = createMemo(() => state.tasks.find((t) => t.id === props.taskId))
   const project = createMemo(() => {
@@ -108,12 +109,15 @@ export function TaskDetail(props: { taskId: string }) {
   }
 
   async function doAction(label: string, fn: () => Promise<void>) {
+    setActionInProgress(label)
     try {
       await fn()
       showMessage(`${label}: ok`)
       await refresh()
     } catch (err) {
       showMessage(`${label}: ${(err as Error).message}`)
+    } finally {
+      setActionInProgress(null)
     }
   }
 
@@ -139,6 +143,8 @@ export function TaskDetail(props: { taskId: string }) {
   }
 
   useKeyboard((key) => {
+    if (actionInProgress()) return
+
     const m = mode()
 
     // Confirm dialog mode
@@ -209,6 +215,11 @@ export function TaskDetail(props: { taskId: string }) {
   })
 
   const keyHints = createMemo((): KeyHint[] => {
+    const action = actionInProgress()
+    if (action) {
+      return [{ key: "...", label: action }]
+    }
+
     const m = mode()
     if (m.type === "confirm") {
       return [
@@ -310,7 +321,10 @@ export function TaskDetail(props: { taskId: string }) {
                 </box>
               </Show>
 
-              {/* Feedback message */}
+              {/* Loading / feedback message */}
+              <Show when={actionInProgress()}>
+                {(action) => <text fg={colors.accent}>{action()}...</text>}
+              </Show>
               <Show when={message()}>
                 <text fg={colors.textDim}>{message()}</text>
               </Show>
