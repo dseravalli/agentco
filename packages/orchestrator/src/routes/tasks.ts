@@ -66,7 +66,7 @@ taskRoutes.post("/:id/start", async (c) => {
   const task = findTask(eq(schema.tasks.id, c.req.param("id")));
   if (!task) return c.json({ error: "Task not found" }, 404);
 
-  if (task.status !== "pending" && task.status !== "failed") {
+  if (task.status !== "pending" && task.status !== "failed" && task.status !== "aborted") {
     return c.json({ error: `Cannot start task in status: ${task.status}` }, 400);
   }
 
@@ -89,7 +89,9 @@ taskRoutes.post("/:id/abort", async (c) => {
 taskRoutes.post("/:id/retry", async (c) => {
   const task = findTask(eq(schema.tasks.id, c.req.param("id")));
   if (!task) return c.json({ error: "Task not found" }, 404);
-  if (task.status !== "failed") return c.json({ error: "Can only retry failed tasks" }, 400);
+  if (task.status !== "failed" && task.status !== "aborted") {
+    return c.json({ error: "Can only retry failed or aborted tasks" }, 400);
+  }
 
   try {
     await lifecycle.cleanupTask(task.id);

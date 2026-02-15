@@ -17,7 +17,7 @@ type Mode =
   | { type: "normal" }
   | { type: "confirm"; action: string; onConfirm: () => void }
 
-const ATTACHABLE: TaskStatus[] = ["agent_running", "needs_input", "agent_done", "preview_live"]
+const ATTACHABLE: TaskStatus[] = ["agent_running", "needs_input", "plan_ready", "agent_done", "preview_live"]
 
 function canAttach(task: Task): boolean {
   return (
@@ -182,11 +182,11 @@ export function TaskDetail(props: { taskId: string }) {
       doAction("start", () => api.startTask(t.id))
       return
     }
-    if (key.name === "x" && (t.status === "agent_running" || t.status === "needs_input")) {
+    if (key.name === "x" && t.status !== "archived" && t.status !== "aborted" && t.status !== "failed") {
       confirmAction("Abort task?", () => doAction("abort", () => api.abortTask(t.id)))
       return
     }
-    if (key.name === "r" && t.status === "failed") {
+    if (key.name === "r" && (t.status === "failed" || t.status === "aborted")) {
       doAction("retry", () => api.retryTask(t.id))
       return
     }
@@ -222,9 +222,9 @@ export function TaskDetail(props: { taskId: string }) {
     if (t) {
       if (canAttach(t)) hints.push({ key: "a", label: "attach" })
       if (t.status === "pending") hints.push({ key: "s", label: "start" })
-      if (t.status === "agent_running" || t.status === "needs_input")
+      if (t.status !== "archived" && t.status !== "aborted" && t.status !== "failed")
         hints.push({ key: "x", label: "abort" })
-      if (t.status === "failed") hints.push({ key: "r", label: "retry" })
+      if (t.status === "failed" || t.status === "aborted") hints.push({ key: "r", label: "retry" })
       if (t.status === "agent_done") hints.push({ key: "p", label: "pr" })
       hints.push({ key: "d", label: t.status === "archived" || t.status === "pending" ? "delete" : "cleanup" })
     }

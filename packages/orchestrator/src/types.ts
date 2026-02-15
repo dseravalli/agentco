@@ -3,12 +3,14 @@ export type TaskStatus =
   | "setting_up"
   | "agent_running"
   | "needs_input"
+  | "plan_ready"
   | "agent_done"
   | "preview_live"
   | "pr_created"
   | "merged"
   | "archived"
-  | "failed";
+  | "failed"
+  | "aborted";
 
 export type AlertType =
   | "needs_permission"

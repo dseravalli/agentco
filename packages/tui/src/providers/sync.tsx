@@ -52,6 +52,7 @@ export function SyncProvider(props: { children: JSX.Element }) {
   function handleWSEvent(event: WSEvent) {
     switch (event.type) {
       case "task:status_changed":
+        // Immediately update status for responsiveness
         setState(
           produce((s) => {
             const task = s.tasks.find((t) => t.id === event.taskId)
@@ -61,6 +62,19 @@ export function SyncProvider(props: { children: JSX.Element }) {
             }
           })
         )
+        // Refetch the full task to get updated ports, URLs, etc.
+        api.getTask(event.taskId).then((fullTask) => {
+          setState(
+            produce((s) => {
+              const idx = s.tasks.findIndex((t) => t.id === event.taskId)
+              if (idx !== -1) {
+                s.tasks[idx] = fullTask
+              }
+            })
+          )
+        }).catch(() => {
+          // Task may have been deleted
+        })
         break
 
       case "task:alert":

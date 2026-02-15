@@ -16,7 +16,7 @@ const FIELDS: Field[] = ["project", "title", "description"]
 export function TaskCreate() {
   const { state, status, refresh } = useSync()
   const { api } = useSDK()
-  const { back, navigate } = useRoute()
+  const { back, replace } = useRoute()
   const toast = useToast()
 
   const [activeField, setActiveField] = createSignal<Field>("project")
@@ -70,7 +70,7 @@ export function TaskCreate() {
         toast.show("Task created")
       }
       await refresh()
-      navigate({ name: "task-detail", taskId: task.id })
+      replace({ name: "task-detail", taskId: task.id }, [{ name: "task-list" }])
     } catch (err) {
       showMessage(`Error: ${(err as Error).message}`)
       setSubmitting(false)

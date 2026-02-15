@@ -22,6 +22,7 @@ export function broadcast(event: WSEvent): void {
 
 export interface StatusChangeEvent {
   status: TaskStatus;
+  agentMode?: string;
   permission?: {
     id: string;
     title: string;
@@ -121,6 +122,13 @@ export function setTaskPort(taskId: string, port: number): void {
   taskPorts.set(taskId, port);
 }
 
+// Track the last-seen agent mode per task so we only emit on change
+const lastSeenAgentMode = new Map<string, string>();
+
+export function clearTaskAgentMode(taskId: string): void {
+  lastSeenAgentMode.delete(taskId);
+}
+
 function handleSSEEvent(
   data: Record<string, unknown>,
   taskId: string,
@@ -184,6 +192,20 @@ function handleSSEEvent(
     const errorMsg = props.error?.data?.message ?? JSON.stringify(props.error);
     console.error(`[sse:${taskId.slice(0, 8)}] session error: ${errorMsg}`);
     onStatusChange({ status: "failed", error: errorMsg });
+  }
+
+  // Detect agent mode changes from assistant messages
+  if (eventType === "message.updated") {
+    const props = data.properties as { info?: { role?: string; mode?: string } };
+    if (props.info?.role === "assistant" && props.info?.mode) {
+      const newMode = props.info.mode;
+      const prevMode = lastSeenAgentMode.get(taskId);
+      if (prevMode !== newMode) {
+        lastSeenAgentMode.set(taskId, newMode);
+        console.log(`[sse:${taskId.slice(0, 8)}] agent mode changed: ${prevMode ?? "unknown"} → ${newMode}`);
+        onStatusChange({ status: "agent_running", agentMode: newMode });
+      }
+    }
   }
 
   // Forward message updates as logs

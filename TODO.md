@@ -2,31 +2,19 @@
 
 ### Orchestrator
 
-- Might not be cleaning up opencode processes succesfully
-
-### Status Handling
-
-- after answering questions, task stayed in needs_input state instead of going to agent_running
-- and then when waiting for plan approval it was agent_done and was stuck there after switching to build mode and saying GO
-- review 'archived' state exactly
+- server and/or client processes can stay running when TUI and orchestrator both down
 
 ### TUI
 
-- going back (esc) after creating & starting task should go to home page not taks creation form
-- not sure abort cmd from the TUI is working correctly
-- review abort vs cleanup and merging of them
-- make statuses prettier
-- creating/managing tasks without starting them immediately
+- closing tmux pane should kill `opencode attach` process
+- review cleanup job
 - popping open vim to write markdown tasks from TUI
 - terminal bells / notifications
 - pop open browser to see PR with a kb cmd
 - highlighting text should copy just like opencode does it
 - TUI model selection?
 
-### OpenClaw
+### Integrations
 
-- openclaw skill/integration
-
-### Misc
-
+- OpenClaw skill
 - Linear integration?

@@ -8,9 +8,10 @@ import * as opencode from "./opencode.js";
 import * as devPreview from "./dev-preview.js";
 import * as pr from "./pr.js";
 import * as portAllocator from "./port-allocator.js";
-import { broadcast, monitorOpenCodeEvents, setTaskPort, type StatusChangeEvent } from "./event-monitor.js";
+import { broadcast, monitorOpenCodeEvents, setTaskPort, clearTaskAgentMode, type StatusChangeEvent } from "./event-monitor.js";
 
 const eventControllers = new Map<string, AbortController>();
+const taskAgentMode = new Map<string, "plan" | "build">();
 
 function log(taskId: string, message: string) {
   console.log(`[task:${taskId.slice(0, 8)}] ${message}`);
@@ -177,6 +178,7 @@ export async function startTask(taskId: string): Promise<void> {
     const model = parseModelId(modelString);
 
     const agent = "plan";
+    taskAgentMode.set(taskId, "plan");
     log(taskId, `sending prompt to ${agent} agent (model: ${modelString})`);
     await opencode.sendPrompt(opencodePort, sessionId, task.description, { model, agent });
 
@@ -264,6 +266,14 @@ export async function abortTask(taskId: string): Promise<void> {
   const task = requireTask(taskId);
   log(taskId, `aborting task`);
 
+  // Stop listening for SSE events
+  const controller = eventControllers.get(taskId);
+  if (controller) {
+    controller.abort();
+    eventControllers.delete(taskId);
+  }
+
+  // Tell the agent to stop its current turn
   if (task.opencodePort && task.opencodeSessionId) {
     try {
       await opencode.abortSession(task.opencodePort, task.opencodeSessionId);
@@ -272,11 +282,24 @@ export async function abortTask(taskId: string): Promise<void> {
     }
   }
 
-  const controller = eventControllers.get(taskId);
-  if (controller) {
-    controller.abort();
-    eventControllers.delete(taskId);
+  // Kill the processes
+  if (task.worktreePath) {
+    log(taskId, `stopping dev preview and opencode`);
+    await devPreview.stopDevPreview(task.worktreePath).catch(() => {});
+    await opencode.stopOpencode(task.worktreePath, task.opencodePort ?? undefined).catch(() => {});
   }
+
+  // Release ports
+  if (task.opencodePort) {
+    await portAllocator.releasePort(taskId, "opencode");
+  }
+  if (task.devPreviewPort) {
+    await portAllocator.releasePort(taskId, "devPreview");
+  }
+
+  taskAgentMode.delete(taskId);
+  clearTaskAgentMode(taskId);
+  updateTaskStatus(taskId, "aborted", { error: "Task aborted by user" });
 }
 
 export async function cleanupTask(taskId: string): Promise<void> {
@@ -291,6 +314,8 @@ export async function cleanupTask(taskId: string): Promise<void> {
     controller.abort();
     eventControllers.delete(taskId);
   }
+  taskAgentMode.delete(taskId);
+  clearTaskAgentMode(taskId);
 
   if (task.worktreePath) {
     log(taskId, `stopping dev preview and opencode`);
@@ -324,6 +349,24 @@ export async function cleanupTask(taskId: string): Promise<void> {
 
 function buildEventHandler(taskId: string) {
   return (event: StatusChangeEvent) => {
+    // Update agent mode whenever we get a signal from SSE message.updated events
+    if (event.agentMode) {
+      const currentMode = taskAgentMode.get(taskId);
+      if (currentMode !== event.agentMode) {
+        log(taskId, `agent mode: ${currentMode ?? "unknown"} → ${event.agentMode}`);
+        taskAgentMode.set(taskId, event.agentMode as "plan" | "build");
+      }
+    }
+
+    const mode = taskAgentMode.get(taskId) || "plan";
+
+    // When session goes idle in plan mode, the plan is ready for approval
+    if (event.status === "agent_done" && mode === "plan") {
+      updateTaskStatus(taskId, "plan_ready");
+      createAlert(taskId, "agent_complete", "Plan is ready for review");
+      return;
+    }
+
     updateTaskStatus(taskId, event.status);
 
     if (event.status === "needs_input" && event.question) {
@@ -359,6 +402,7 @@ export async function reconnectActiveTasks(): Promise<void> {
     "setting_up",
     "agent_running",
     "needs_input",
+    "plan_ready",
     "agent_done",
     "preview_live",
   ];
@@ -387,6 +431,11 @@ export async function reconnectActiveTasks(): Promise<void> {
     console.log(`[reconnect] task ${task.id.slice(0, 8)} health: ${alive}`);
 
     if (alive) {
+      // Restore agent mode based on current status
+      const mode = task.status === "agent_done" || task.status === "preview_live"
+        ? "build" : "plan";
+      taskAgentMode.set(task.id, mode);
+
       setTaskPort(task.id, task.opencodePort);
       const controller = await monitorOpenCodeEvents(
         task.opencodePort,
@@ -395,7 +444,7 @@ export async function reconnectActiveTasks(): Promise<void> {
       );
 
       eventControllers.set(task.id, controller);
-      console.log(`[reconnect] task ${task.id.slice(0, 8)} SSE reconnected`);
+      console.log(`[reconnect] task ${task.id.slice(0, 8)} SSE reconnected (mode: ${mode})`);
     } else {
       console.log(`[reconnect] task ${task.id.slice(0, 8)} is dead, marking failed`);
       updateTaskError(task.id, "OpenCode process died while orchestrator was offline");

@@ -65,7 +65,7 @@ export function TaskList() {
     if (cursor() > max) setCursor(Math.max(0, max))
   }
 
-  const ATTACHABLE: TaskStatus[] = ["agent_running", "needs_input", "agent_done", "preview_live"]
+  const ATTACHABLE: TaskStatus[] = ["agent_running", "needs_input", "plan_ready", "agent_done", "preview_live"]
 
   function showMessage(msg: string) {
     setMessage(msg)
@@ -147,9 +147,6 @@ export function TaskList() {
       setFilterActive(true)
       setFilter("")
     }
-    if (key.name === "r") {
-      refresh()
-    }
 
     // Task actions on selected task
     const t = selectedTask()
@@ -162,7 +159,7 @@ export function TaskList() {
         doAction("start", () => api.startTask(t.id))
         return
       }
-      if (key.name === "x" && (t.status === "agent_running" || t.status === "needs_input")) {
+      if (key.name === "x" && t.status !== "archived" && t.status !== "aborted" && t.status !== "failed") {
         doAction("abort", () => api.abortTask(t.id))
         return
       }
@@ -189,15 +186,15 @@ export function TaskList() {
     ]
     const t = selectedTask()
     if (t) {
-      if (t.opencodePort && t.opencodeSessionId) hints.push({ key: "a", label: "attach" })
+      if (ATTACHABLE.includes(t.status) && t.opencodePort && t.opencodeSessionId)
+        hints.push({ key: "a", label: "attach" })
       if (t.status === "pending") hints.push({ key: "s", label: "start" })
-      if (t.status === "agent_running" || t.status === "needs_input")
+      if (t.status !== "archived" && t.status !== "aborted" && t.status !== "failed")
         hints.push({ key: "x", label: "abort" })
     }
     hints.push(
       { key: "c", label: "create" },
       { key: "/", label: "filter" },
-      { key: "r", label: "refresh" },
       { key: "q", label: "quit" },
     )
     return hints

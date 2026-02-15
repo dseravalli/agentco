@@ -14,6 +14,7 @@ export type View =
 interface RouteContextValue {
   view: Accessor<View>
   navigate: (view: View) => void
+  replace: (view: View, newHistory?: View[]) => void
   back: () => void
 }
 
@@ -28,6 +29,13 @@ export function RouteProvider(props: { children: JSX.Element }) {
     setView(next)
   }
 
+  function replace(next: View, newHistory?: View[]) {
+    if (newHistory) {
+      setHistory(newHistory)
+    }
+    setView(next)
+  }
+
   function back() {
     const h = history()
     if (h.length === 0) return
@@ -37,7 +45,7 @@ export function RouteProvider(props: { children: JSX.Element }) {
   }
 
   return (
-    <RouteContext.Provider value={{ view, navigate, back }}>
+    <RouteContext.Provider value={{ view, navigate, replace, back }}>
       {props.children}
     </RouteContext.Provider>
   )
