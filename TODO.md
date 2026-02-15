@@ -1,5 +1,10 @@
 # TODO
 
+## Orchestrator
+
+- automatic task splitting
+- memory system
+
 ## TUI
 
 - improve home page UI
