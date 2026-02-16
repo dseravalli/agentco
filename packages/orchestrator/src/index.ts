@@ -6,10 +6,13 @@ import { projectRoutes } from "./routes/projects.js";
 import { taskRoutes } from "./routes/tasks.js";
 import { alertRoutes } from "./routes/alerts.js";
 import { configRoutes } from "./routes/config.js";
+import { webhookRoutes } from "./routes/webhooks.js";
 import { createWSRoutes } from "./routes/ws.js";
 import { proxyRoutes } from "./routes/proxy.js";
 import { ORCHESTRATOR_PORT } from "./types.js";
 import { reconnectActiveTasks } from "./services/lifecycle.js";
+import { initWebhooks } from "./services/webhooks.js";
+import { initOpenClaw } from "./services/openclaw.js";
 
 const app = new Hono();
 
@@ -31,6 +34,7 @@ app.route("/api/projects", projectRoutes);
 app.route("/api/tasks", taskRoutes);
 app.route("/api/alerts", alertRoutes);
 app.route("/api/config", configRoutes);
+app.route("/api/webhooks", webhookRoutes);
 
 const wsRoutes = createWSRoutes(upgradeWebSocket);
 app.route("/api", wsRoutes);
@@ -38,6 +42,9 @@ app.route("/api", wsRoutes);
 app.route("/", proxyRoutes);
 
 console.log(`AgentCo orchestrator running on http://localhost:${ORCHESTRATOR_PORT}`);
+
+initWebhooks();
+initOpenClaw();
 
 reconnectActiveTasks().catch((err) => {
   console.error("[reconnect] failed:", err);

@@ -72,3 +72,44 @@ export const PORT_RANGES: PortRanges = {
 };
 
 export const ORCHESTRATOR_PORT = 8080;
+
+// Webhook event types that consumers can subscribe to
+export type WebhookEventType =
+  | "task.status_changed"
+  | "task.failed"
+  | "task.completed"
+  | "alert.needs_input"
+  | "alert.needs_permission"
+  | "alert.agent_complete"
+  | "alert.action_required"
+  | "alert.error"
+  | "alert.preview_live"
+  | "alert.pr_created";
+
+export const ALL_WEBHOOK_EVENT_TYPES: WebhookEventType[] = [
+  "task.status_changed",
+  "task.failed",
+  "task.completed",
+  "alert.needs_input",
+  "alert.needs_permission",
+  "alert.agent_complete",
+  "alert.action_required",
+  "alert.error",
+  "alert.preview_live",
+  "alert.pr_created",
+];
+
+export interface WebhookConfig {
+  id: string;
+  url: string;
+  events: WebhookEventType[];
+  active: boolean;
+  headers?: Record<string, string>;
+  secret?: string;
+}
+
+export interface OpenClawConfig {
+  baseUrl: string;
+  token: string;
+  events?: WebhookEventType[];
+}
