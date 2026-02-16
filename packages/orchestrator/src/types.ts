@@ -17,6 +17,7 @@ export type AlertType =
   | "needs_input"
   | "needs_question"
   | "agent_complete"
+  | "action_required"
   | "preview_live"
   | "pr_created"
   | "error";

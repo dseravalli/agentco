@@ -44,6 +44,16 @@ export function TaskList() {
     return map
   })
 
+  const actionRequiredByTask = createMemo(() => {
+    const map = new Map<string, number>()
+    for (const a of state.alerts) {
+      if (!a.read && a.type === "action_required") {
+        map.set(a.taskId, (map.get(a.taskId) || 0) + 1)
+      }
+    }
+    return map
+  })
+
   const sortedTasks = createMemo(() =>
     [...state.tasks].sort(
       (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
@@ -277,6 +287,7 @@ export function TaskList() {
               const isSelected = () => i() === cursor()
               const projName = () => projectMap().get(task.projectId) || "???"
               const alertCount = () => unreadByTask().get(task.id) || 0
+              const actionCount = () => actionRequiredByTask().get(task.id) || 0
 
               return (
                 <box
@@ -295,6 +306,9 @@ export function TaskList() {
                   <text fg={isSelected() ? colors.highlightText : colors.text} flexGrow={1}>
                     {task.title}
                   </text>
+                  <Show when={actionCount() > 0}>
+                    <text fg="#d19a66">{actionCount()} action{actionCount() > 1 ? "s" : ""}</text>
+                  </Show>
                   <StatusBadge status={task.status} />
                 </box>
               )

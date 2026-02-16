@@ -16,6 +16,7 @@ const NOTIFY_ALERT_TYPES: Set<AlertType> = new Set([
   "needs_permission",
   "needs_question",
   "agent_complete",
+  "action_required",
   "error",
 ])
 

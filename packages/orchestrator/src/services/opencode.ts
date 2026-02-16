@@ -217,6 +217,33 @@ export async function listQuestions(port: number): Promise<OpenCodeQuestion[]> {
   return res.json();
 }
 
+export interface FileDiff {
+  file: string;
+  before: string;
+  after: string;
+  additions: number;
+  deletions: number;
+}
+
+export async function getSessionDiff(port: number, sessionId: string): Promise<FileDiff[]> {
+  const client = createClient(port);
+  const result = await client.session.diff({
+    path: { id: sessionId },
+  });
+  return (result.data ?? []) as FileDiff[];
+}
+
+export async function getSessionMessages(
+  port: number,
+  sessionId: string
+): Promise<Array<{ info: Record<string, unknown>; parts: Array<Record<string, unknown>> }>> {
+  const client = createClient(port);
+  const result = await client.session.messages({
+    path: { id: sessionId },
+  });
+  return (result.data ?? []) as Array<{ info: Record<string, unknown>; parts: Array<Record<string, unknown>> }>;
+}
+
 export async function answerQuestion(
   port: number,
   questionId: string,

@@ -9,6 +9,7 @@ import * as devPreview from "./dev-preview.js";
 import * as pr from "./pr.js";
 import * as portAllocator from "./port-allocator.js";
 import { broadcast, monitorOpenCodeEvents, setTaskPort, clearTaskAgentMode, type StatusChangeEvent } from "./event-monitor.js";
+import { analyzeCompletion } from "./action-items.js";
 
 const eventControllers = new Map<string, AbortController>();
 const taskAgentMode = new Map<string, "plan" | "build">();
@@ -347,6 +348,43 @@ export async function cleanupTask(taskId: string): Promise<void> {
   updateTaskStatus(taskId, "archived");
 }
 
+function runPostCompletionAnalysis(taskId: string): void {
+  const task = findTask(eq(schema.tasks.id, taskId));
+  if (!task?.opencodePort || !task?.opencodeSessionId) {
+    log(taskId, "skipping post-completion analysis: no port or session");
+    return;
+  }
+
+  const port = task.opencodePort;
+  const sessionId = task.opencodeSessionId;
+
+  // Fire-and-forget: don't block the event handler
+  (async () => {
+    try {
+      log(taskId, "running post-completion analysis");
+      const diffs = await opencode.getSessionDiff(port, sessionId);
+      log(taskId, `fetched ${diffs.length} file diff(s)`);
+
+      const items = await analyzeCompletion(diffs);
+      for (const item of items) {
+        createAlert(taskId, "action_required", item.summary, {
+          category: item.category,
+          files: item.files,
+        });
+      }
+
+      if (items.length > 0) {
+        log(taskId, `created ${items.length} action item alert(s)`);
+      } else {
+        log(taskId, "no action items detected");
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      log(taskId, `post-completion analysis failed: ${msg}`);
+    }
+  })();
+}
+
 function buildEventHandler(taskId: string) {
   return (event: StatusChangeEvent) => {
     // Update agent mode whenever we get a signal from SSE message.updated events
@@ -389,6 +427,7 @@ function buildEventHandler(taskId: string) {
 
     if (event.status === "agent_done") {
       createAlert(taskId, "agent_complete", "Agent has completed its turn");
+      runPostCompletionAnalysis(taskId);
     }
 
     if (event.status === "failed" && event.error) {

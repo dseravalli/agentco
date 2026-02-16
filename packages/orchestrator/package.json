@@ -14,13 +14,14 @@
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
-    "hono": "^4.7.0",
-    "drizzle-orm": "^0.38.0",
+    "@anthropic-ai/sdk": "^0.74.0",
     "@opencode-ai/sdk": "^0.15.0",
+    "drizzle-orm": "^0.38.0",
     "execa": "^9.5.0",
+    "hono": "^4.7.0",
+    "nanoid": "^5.1.0",
     "pg": "^8.13.0",
-    "slugify": "^1.6.6",
-    "nanoid": "^5.1.0"
+    "slugify": "^1.6.6"
   },
   "devDependencies": {
     "@types/bun": "latest",

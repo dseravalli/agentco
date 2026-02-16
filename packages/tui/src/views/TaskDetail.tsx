@@ -48,6 +48,8 @@ function AlertRow(props: {
         return "!"
       case "needs_question":
         return "?"
+      case "action_required":
+        return ">"
       case "error":
         return "x"
       default:
@@ -62,6 +64,8 @@ function AlertRow(props: {
         return colors.warning
       case "needs_question":
         return colors.accent
+      case "action_required":
+        return "#d19a66"
       case "error":
         return colors.error
       default:
@@ -103,6 +107,10 @@ export function TaskDetail(props: { taskId: string }) {
   )
 
   const unreadAlerts = createMemo(() => taskAlerts().filter((a) => !a.read))
+
+  const actionItems = createMemo(() =>
+    taskAlerts().filter((a) => a.type === "action_required")
+  )
 
   function showMessage(msg: string) {
     setMessage(msg)
@@ -304,6 +312,21 @@ export function TaskDetail(props: { taskId: string }) {
                 <box flexDirection="column">
                   <text fg={colors.error}><b>Error</b></text>
                   <text fg={colors.error}>{t().error}</text>
+                </box>
+              </Show>
+
+              {/* Action Items */}
+              <Show when={actionItems().length > 0}>
+                <box flexDirection="column" width="100%">
+                  <text fg="#d19a66"><b>Action Required ({actionItems().length})</b></text>
+                  <For each={actionItems()}>
+                    {(item) => (
+                      <box flexDirection="row" width="100%" gap={1}>
+                        <text fg="#d19a66">{">"}</text>
+                        <text fg={colors.text}>{item.message}</text>
+                      </box>
+                    )}
+                  </For>
                 </box>
               </Show>
 
