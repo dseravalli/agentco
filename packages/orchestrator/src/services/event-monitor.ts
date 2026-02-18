@@ -135,9 +135,10 @@ export function clearTaskAgentMode(taskId: string): void {
 // SSE events worth logging at info level (status-changing or user-facing)
 const SSE_INFO_EVENTS = new Set([
   "session.idle",
+  "session.status",
   "session.error",
   "question.asked",
-  "question.answered",
+  "question.replied",
   "question.rejected",
   "permission.updated",
   "permission.replied",
@@ -171,7 +172,7 @@ function handleSSEEvent(
   }
 
   // Question was answered — agent resumes
-  if (eventType === "question.answered") {
+  if (eventType === "question.replied") {
     logger.info(prefix, "question answered, agent resuming");
     onStatusChange({ status: "agent_running" });
   }
@@ -212,17 +213,17 @@ function handleSSEEvent(
     onStatusChange({ status: "failed", error: errorMsg });
   }
 
-  // Detect agent mode changes from assistant messages
+  // Detect assistant activity — any assistant message means the agent is working
   if (eventType === "message.updated") {
     const props = data.properties as { info?: { role?: string; mode?: string } };
-    if (props.info?.role === "assistant" && props.info?.mode) {
+    if (props.info?.role === "assistant") {
       const newMode = props.info.mode;
       const prevMode = lastSeenAgentMode.get(taskId);
-      if (prevMode !== newMode) {
+      if (newMode && prevMode !== newMode) {
         lastSeenAgentMode.set(taskId, newMode);
         logger.debug(prefix, `agent mode changed: ${prevMode ?? "unknown"} → ${newMode}`);
-        onStatusChange({ status: "agent_running", agentMode: newMode });
       }
+      onStatusChange({ status: "agent_running", agentMode: newMode });
     }
   }
 

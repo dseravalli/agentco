@@ -487,18 +487,27 @@ function buildTeamEventHandler(
       }
     }
 
-    // Leader idle in plan mode → parse team plan and spawn members
+    // Leader/member idle handling
     if (event.status === "agent_done") {
       const member = db.select().from(schema.teamMembers).where(eq(schema.teamMembers.id, memberId)).get();
       if (!member) return;
 
       if (member.role === "leader" && !planParsed) {
-        // session.idle fires between every agent turn, not just when
-        // the plan is written. If the file isn't there yet, the leader
-        // is still working (exploring, asking questions, etc.).
+        const mode = taskAgentMode.get(`${taskId}:${memberId}`) || "plan";
+
+        // Plan mode: same as solo — mark plan_ready so user can review and approve
+        if (mode === "plan") {
+          updateTaskStatus(taskId, "plan_ready");
+          createAlert(taskId, "agent_complete", "Plan is ready for review");
+          return;
+        }
+
+        // Build mode: leader has been approved and should be writing the team plan file.
+        // session.idle fires between every agent turn, so if the file isn't there yet,
+        // the leader is still working.
         const planPath = path.join(infra.worktreePath, TEAM_PLAN_PATH);
         if (!fs.existsSync(planPath)) {
-          log(taskId, `${memberPrefix} leader idle, plan not written yet — waiting`);
+          log(taskId, `${memberPrefix} leader idle in build mode, team plan file not written yet — waiting`);
           updateTaskStatus(taskId, "agent_running");
           return;
         }
