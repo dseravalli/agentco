@@ -1,17 +1,21 @@
 import { execa } from "execa";
 import { createOpencodeClient } from "@opencode-ai/sdk";
+import { OPENCODE_BIN } from "@agentco/shared";
+import * as logger from "../lib/log.js";
 
-const processes = new Map<string, ReturnType<typeof execa>>();
+// Keyed by port number — unique per OpenCode instance even when
+// multiple instances share the same worktree (team mode).
+const processes = new Map<number, ReturnType<typeof execa>>();
 
 export async function startOpencode(
   worktreePath: string,
   port: number,
   dashboardOrigin: string
 ): Promise<void> {
-  console.log(`[opencode] spawning: opencode serve --port ${port} --cors ${dashboardOrigin}`);
-  console.log(`[opencode] cwd: ${worktreePath}`);
+  logger.debug("[opencode]", `spawning: ${OPENCODE_BIN} serve --port ${port} --cors ${dashboardOrigin}`);
+  logger.debug("[opencode]", `cwd: ${worktreePath}`);
 
-  const proc = execa("opencode", ["serve", "--port", String(port), "--cors", dashboardOrigin, "--print-logs"], {
+  const proc = execa(OPENCODE_BIN, ["serve", "--port", String(port), "--cors", dashboardOrigin, "--print-logs"], {
     cwd: worktreePath,
     reject: false,
     stdout: "pipe",
@@ -19,40 +23,42 @@ export async function startOpencode(
     detached: true,
   });
 
-  // Log stdout/stderr for debugging
   proc.stdout?.on("data", (chunk: Buffer) => {
     const text = chunk.toString().trim();
-    if (text) console.log(`[opencode:${port}] ${text}`);
+    if (text) logger.debug(`[opencode:${port}]`, text);
   });
 
   proc.stderr?.on("data", (chunk: Buffer) => {
     const text = chunk.toString().trim();
-    if (text) console.error(`[opencode:${port}:err] ${text}`);
+    if (!text) return;
+    if (text.includes("ERROR") || text.includes("WARN")) {
+      logger.error(`[opencode:${port}:err]`, text);
+    } else {
+      logger.debug(`[opencode:${port}:err]`, text);
+    }
   });
 
   proc.on("exit", (code) => {
-    console.log(`[opencode:${port}] process exited with code ${code}`);
-    processes.delete(worktreePath);
+    logger.info(`[opencode:${port}]`, `process exited with code ${code}`);
+    processes.delete(port);
   });
 
-  processes.set(worktreePath, proc);
+  processes.set(port, proc);
 
   const healthy = await waitForHealth(`http://127.0.0.1:${port}`, 30_000);
   if (!healthy) {
-    await stopOpencode(worktreePath, port);
+    await stopOpencode(port);
     throw new Error(`OpenCode failed to start on port ${port}`);
   }
 }
 
-export async function stopOpencode(worktreePath: string, port?: number): Promise<void> {
-  processes.delete(worktreePath);
+export async function stopOpencode(port: number): Promise<void> {
+  processes.delete(port);
 
-  if (port) {
-    // Kill the server (LISTEN) and any attached clients (ESTABLISHED),
-    // but never kill our own process.
-    await killProcessOnPort(port, "-sTCP:LISTEN");
-    await killProcessOnPort(port, "-sTCP:ESTABLISHED");
-  }
+  // Kill the server (LISTEN) and any attached clients (ESTABLISHED),
+  // but never kill our own process.
+  await killProcessOnPort(port, "-sTCP:LISTEN");
+  await killProcessOnPort(port, "-sTCP:ESTABLISHED");
 }
 
 async function killProcessOnPort(port: number, stateFilter: string): Promise<void> {

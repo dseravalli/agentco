@@ -43,6 +43,23 @@ export function registerProjectCommands(program: Command) {
         process.exit(1);
       }
     });
+  project
+    .command("delete <name>")
+    .description("Delete a registered project")
+    .action(async (name: string) => {
+      try {
+        const proj = await client.findProjectByName(name);
+        if (!proj) {
+          console.error(`Project not found: ${name}`);
+          process.exit(1);
+        }
+        await client.deleteProject(proj.id);
+        console.log(`Deleted project: ${proj.name} (${proj.id.slice(0, 8)})`);
+      } catch (err) {
+        console.error(`Failed to delete project: ${(err as Error).message}`);
+        process.exit(1);
+      }
+    });
 }
 
 function padRow(...cols: string[]): string {

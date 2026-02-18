@@ -28,7 +28,7 @@ export async function allocatePort(type: PortType): Promise<number> {
   const range = getRange(type);
   const col = getPortColumn(type);
 
-  const usedPorts = db
+  const taskPorts = db
     .select({ port: schema.tasks[col] })
     .from(schema.tasks)
     .where(isNotNull(schema.tasks[col]))
@@ -36,7 +36,22 @@ export async function allocatePort(type: PortType): Promise<number> {
     .map((r) => r.port)
     .filter((p): p is number => p !== null);
 
-  const usedSet = new Set(usedPorts);
+  const usedSet = new Set(taskPorts);
+
+  // Team member agents also hold opencode ports
+  if (type === "opencode") {
+    const memberPorts = db
+      .select({ port: schema.teamMembers.opencodePort })
+      .from(schema.teamMembers)
+      .where(isNotNull(schema.teamMembers.opencodePort))
+      .all()
+      .map((r) => r.port)
+      .filter((p): p is number => p !== null);
+
+    for (const p of memberPorts) {
+      usedSet.add(p);
+    }
+  }
 
   for (let port = range.min; port <= range.max; port++) {
     if (usedSet.has(port)) continue;
@@ -58,5 +73,12 @@ export async function releasePort(
   db.update(schema.tasks)
     .set({ [col]: null })
     .where(eq(schema.tasks.id, taskId))
+    .run();
+}
+
+export async function releaseTeamMemberPort(memberId: string): Promise<void> {
+  db.update(schema.teamMembers)
+    .set({ opencodePort: null })
+    .where(eq(schema.teamMembers.id, memberId))
     .run();
 }

@@ -12,6 +12,7 @@
         "agentco": "./dist/index.js",
       },
       "dependencies": {
+        "@agentco/shared": "workspace:*",
         "commander": "^13.1.0",
       },
       "devDependencies": {
@@ -23,6 +24,7 @@
       "name": "@agentco/orchestrator",
       "version": "0.1.0",
       "dependencies": {
+        "@agentco/shared": "workspace:*",
         "@anthropic-ai/sdk": "^0.74.0",
         "@opencode-ai/sdk": "^0.15.0",
         "drizzle-orm": "^0.38.0",
@@ -40,10 +42,18 @@
         "typescript": "^5.7.0",
       },
     },
+    "packages/shared": {
+      "name": "@agentco/shared",
+      "version": "0.1.0",
+      "devDependencies": {
+        "typescript": "^5.7.0",
+      },
+    },
     "packages/tui": {
       "name": "@agentco/tui",
       "version": "0.1.0",
       "dependencies": {
+        "@agentco/shared": "workspace:*",
         "@opentui/solid": "^0.1.79",
         "solid-js": "^1.9.0",
       },
@@ -57,6 +67,8 @@
     "@agentco/cli": ["@agentco/cli@workspace:packages/cli"],
 
     "@agentco/orchestrator": ["@agentco/orchestrator@workspace:packages/orchestrator"],
+
+    "@agentco/shared": ["@agentco/shared@workspace:packages/shared"],
 
     "@agentco/tui": ["@agentco/tui@workspace:packages/tui"],
 

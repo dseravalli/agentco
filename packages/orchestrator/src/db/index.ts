@@ -20,6 +20,7 @@ export { schema };
 export type Project = typeof schema.projects.$inferSelect;
 export type Task = typeof schema.tasks.$inferSelect;
 export type Alert = typeof schema.alerts.$inferSelect;
+export type TeamMember = typeof schema.teamMembers.$inferSelect;
 
 export function findProject(where: SQL): Project | undefined {
   return db.select().from(schema.projects).where(where).get();
@@ -31,4 +32,12 @@ export function findTask(where: SQL): Task | undefined {
 
 export function findAlert(where: SQL): Alert | undefined {
   return db.select().from(schema.alerts).where(where).get();
+}
+
+export function findTeamMembers(taskId: string): TeamMember[] {
+  return db
+    .select()
+    .from(schema.teamMembers)
+    .where(eq(schema.teamMembers.taskId, taskId))
+    .all();
 }

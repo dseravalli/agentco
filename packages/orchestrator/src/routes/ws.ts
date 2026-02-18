@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import type { WSContext } from "hono/ws";
 import { subscribe } from "../services/event-monitor.js";
 import type { WSEvent } from "../types.js";
+import * as logger from "../lib/log.js";
 
 type UpgradeWebSocket = (handler: (c: any) => {
   onOpen?: (evt: Event, ws: WSContext) => void;
@@ -20,7 +21,7 @@ export function createWSRoutes(upgradeWebSocket: UpgradeWebSocket) {
 
       return {
         onOpen(_evt, ws) {
-          console.log("WebSocket client connected");
+          logger.debug("[ws]", "client connected");
 
           unsubscribe = subscribe((event: WSEvent) => {
             try {
@@ -43,7 +44,7 @@ export function createWSRoutes(upgradeWebSocket: UpgradeWebSocket) {
         },
 
         onClose() {
-          console.log("WebSocket client disconnected");
+          logger.debug("[ws]", "client disconnected");
           if (unsubscribe) {
             unsubscribe();
             unsubscribe = null;
@@ -51,7 +52,7 @@ export function createWSRoutes(upgradeWebSocket: UpgradeWebSocket) {
         },
 
         onError(evt) {
-          console.error("WebSocket error:", evt);
+          logger.error("[ws]", `error: ${evt}`);
           if (unsubscribe) {
             unsubscribe();
             unsubscribe = null;

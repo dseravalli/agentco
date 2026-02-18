@@ -1,21 +1,16 @@
 {
-  "name": "@agentco/cli",
+  "name": "@agentco/shared",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "bin": {
-    "agentco": "./dist/index.js"
+  "exports": {
+    ".": "./src/index.ts"
   },
   "scripts": {
     "build": "tsc",
     "typecheck": "tsc --noEmit"
   },
-  "dependencies": {
-    "@agentco/shared": "workspace:*",
-    "commander": "^13.1.0"
-  },
   "devDependencies": {
-    "@types/bun": "latest",
     "typescript": "^5.7.0"
   }
 }

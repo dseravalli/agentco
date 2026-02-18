@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import type { AgentCoConfig } from "../types.js";
+import * as logger from "../lib/log.js";
 
 export async function copyWorktreeFiles(
   projectRoot: string,
@@ -14,7 +15,7 @@ export async function copyWorktreeFiles(
     try {
       await fs.access(src);
     } catch {
-      console.warn(`File not found, skipping copy: ${src}`);
+      logger.warn("[env]", `File not found, skipping copy: ${src}`);
       continue;
     }
 

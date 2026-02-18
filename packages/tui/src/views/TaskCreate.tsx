@@ -11,11 +11,17 @@ import { useToast } from "../providers/toast.js"
 import { Header } from "../components/Header.js"
 import { KeyHints, type KeyHint } from "../components/KeyHints.js"
 import { colors } from "../lib/theme.js"
+import type { TaskMode } from "../lib/types.js"
 
 const AGENTCO_URL = process.env.AGENTCO_URL || "http://localhost:8080"
 
-type Field = "project" | "model" | "description"
-const FIELDS: Field[] = ["project", "model", "description"]
+type Field = "project" | "model" | "mode" | "description"
+const FIELDS: Field[] = ["project", "model", "mode", "description"]
+
+const MODES: { value: TaskMode; label: string }[] = [
+  { value: "solo", label: "Solo" },
+  { value: "team", label: "Team" },
+]
 
 export function TaskCreate() {
   const { state, status, refresh } = useSync()
@@ -27,6 +33,7 @@ export function TaskCreate() {
   const [activeField, setActiveField] = createSignal<Field>("project")
   const [projectIndex, setProjectIndex] = createSignal(0)
   const [modelIndex, setModelIndex] = createSignal(0)
+  const [modeIndex, setModeIndex] = createSignal(0)
   const [models, setModels] = createSignal<string[]>([])
   const [description, setDescription] = createSignal("")
   const [editorUsed, setEditorUsed] = createSignal(false)
@@ -113,7 +120,8 @@ export function TaskCreate() {
     setSubmitting(true)
     try {
       const model = selectedModel()
-      const task = await api.createTask(proj.id, description().trim(), model)
+      const selectedMode = MODES[modeIndex()].value
+      const task = await api.createTask(proj.id, description().trim(), model, selectedMode)
       if (andStart) {
         await api.startTask(task.id)
         toast.show("Task created and started")
@@ -198,6 +206,23 @@ export function TaskCreate() {
       return
     }
 
+    // Mode selector
+    if (field === "mode") {
+      if (key.name === "j" || key.name === "down" || key.name === "right") {
+        setModeIndex((i) => Math.min(i + 1, MODES.length - 1))
+        return
+      }
+      if (key.name === "k" || key.name === "up" || key.name === "left") {
+        setModeIndex((i) => Math.max(i - 1, 0))
+        return
+      }
+      if (key.name === "return") {
+        nextField()
+        return
+      }
+      return
+    }
+
     // Text input field (description)
     if (key.ctrl && key.name === "e") {
       openEditor()
@@ -230,8 +255,13 @@ export function TaskCreate() {
     const hints: KeyHint[] = [{ key: "esc", label: "cancel" }]
     hints.push({ key: "tab", label: "next field" })
     const field = activeField()
-    if (field === "project" || field === "model") {
-      hints.push({ key: "j/k", label: field === "project" ? "select project" : "select model" })
+    if (field === "project" || field === "model" || field === "mode") {
+      const fieldLabels: Record<string, string> = {
+        project: "select project",
+        model: "select model",
+        mode: "select mode",
+      }
+      hints.push({ key: "j/k", label: fieldLabels[field] })
     }
     if (field === "description") {
       hints.push({ key: "ctrl+e", label: "editor" })
@@ -296,6 +326,24 @@ export function TaskCreate() {
               <Show when={activeField() === "model" && models().length > 1}>
                 <text fg={colors.textMuted}>
                   ({modelIndex() + 1}/{models().length})
+                </text>
+              </Show>
+            </box>
+          </box>
+
+          {/* Mode selector */}
+          <box flexDirection="row" width="100%" gap={1}>
+            <FieldLabel label="Mode" field="mode" />
+            <box flexDirection="row" gap={1}>
+              <Show when={activeField() === "mode"}>
+                <text fg={colors.textMuted}>{"▲▼"}</text>
+              </Show>
+              <text fg={activeField() === "mode" ? colors.highlightText : colors.text}>
+                {MODES[modeIndex()].label}
+              </text>
+              <Show when={activeField() === "mode"}>
+                <text fg={colors.textMuted}>
+                  ({modeIndex() + 1}/{MODES.length})
                 </text>
               </Show>
             </box>

@@ -13,5 +13,5 @@
 
 ## Integrations
 
-- OpenClaw skill
+- OpenClaw skill and webhooks
 - Linear integration

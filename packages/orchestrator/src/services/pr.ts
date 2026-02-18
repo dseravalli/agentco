@@ -1,5 +1,6 @@
 import { execa } from "execa";
 import * as git from "./git.js";
+import * as logger from "../lib/log.js";
 
 export async function createPullRequest(
   worktreePath: string,
@@ -12,7 +13,7 @@ export async function createPullRequest(
   try {
     await git.commit(worktreePath, title);
   } catch {
-    console.warn("Nothing to commit, continuing with PR creation");
+    logger.warn("[pr]", "Nothing to commit, continuing with PR creation");
   }
 
   await git.push(worktreePath, branchName);

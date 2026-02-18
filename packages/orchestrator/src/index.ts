@@ -10,10 +10,13 @@ import { createWSRoutes } from "./routes/ws.js";
 import { proxyRoutes } from "./routes/proxy.js";
 import { ORCHESTRATOR_PORT } from "./types.js";
 import { reconnectActiveTasks } from "./services/lifecycle.js";
+import { isDebug, info as logInfo, error as logError } from "./lib/log.js";
 
 const app = new Hono();
 
-app.use("*", logger());
+if (isDebug()) {
+  app.use("*", logger());
+}
 app.use(
   "*",
   cors({
@@ -37,10 +40,10 @@ app.route("/api", wsRoutes);
 
 app.route("/", proxyRoutes);
 
-console.log(`AgentCo orchestrator running on http://localhost:${ORCHESTRATOR_PORT}`);
+logInfo("[server]", `AgentCo orchestrator running on http://localhost:${ORCHESTRATOR_PORT}`);
 
 reconnectActiveTasks().catch((err) => {
-  console.error("[reconnect] failed:", err);
+  logError("[reconnect]", `failed: ${err}`);
 });
 
 export default {

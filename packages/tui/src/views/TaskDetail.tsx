@@ -1,5 +1,5 @@
 import { useKeyboard } from "@opentui/solid"
-import { createSignal, createMemo, Show, For } from "solid-js"
+import { createSignal, createMemo, onMount, Show, For } from "solid-js"
 import { useSync } from "../providers/sync.js"
 import { useSDK } from "../providers/sdk.js"
 import { useRoute } from "../providers/route.js"
@@ -9,8 +9,8 @@ import { StatusBadge } from "../components/StatusBadge.js"
 import { colors } from "../lib/theme.js"
 import { timeAgo } from "../lib/time.js"
 import { execFileSync } from "node:child_process"
-import { isTmux, openTmuxWindow } from "../lib/tmux.js"
-import type { Alert, Task, TaskStatus } from "../lib/types.js"
+import { isTmux, openTmuxWindow, openTeamTmuxLayout } from "../lib/tmux.js"
+import type { Alert, Task, TaskStatus, TeamMember } from "../lib/types.js"
 
 const AGENTCO_URL = process.env.AGENTCO_URL || "http://localhost:8080"
 
@@ -21,11 +21,10 @@ type Mode =
 const ATTACHABLE: TaskStatus[] = ["agent_running", "needs_input", "plan_ready", "agent_done", "preview_live"]
 
 function canAttach(task: Task): boolean {
-  return (
-    ATTACHABLE.includes(task.status) &&
-    task.opencodePort !== null &&
-    task.opencodeSessionId !== null
-  )
+  if (!ATTACHABLE.includes(task.status)) return false
+  // Team tasks store ports on team_members, not on the task itself
+  if (task.mode === "team") return true
+  return task.opencodePort !== null && task.opencodeSessionId !== null
 }
 
 function MetadataRow(props: { label: string; value: string; valueFg?: string }) {
@@ -92,12 +91,23 @@ export function TaskDetail(props: { taskId: string }) {
   const [alertCursor, setAlertCursor] = createSignal(0)
   const [message, setMessage] = createSignal("")
   const [actionInProgress, setActionInProgress] = createSignal<string | null>(null)
+  const [teamMembers, setTeamMembers] = createSignal<TeamMember[]>([])
 
   const task = createMemo(() => state.tasks.find((t) => t.id === props.taskId))
   const project = createMemo(() => {
     const t = task()
     if (!t) return undefined
     return state.projects.find((p) => p.id === t.projectId)
+  })
+
+  onMount(async () => {
+    const t = task()
+    if (t?.mode === "team") {
+      try {
+        const members = await api.listTeamMembers(t.id)
+        setTeamMembers(members)
+      } catch {}
+    }
   })
 
   const taskAlerts = createMemo(() =>
@@ -134,7 +144,7 @@ export function TaskDetail(props: { taskId: string }) {
     setMode({ type: "confirm", action, onConfirm })
   }
 
-  function handleAttach() {
+  async function handleAttach() {
     const t = task()
     if (!t || !canAttach(t)) return
 
@@ -143,12 +153,40 @@ export function TaskDetail(props: { taskId: string }) {
       return
     }
 
-    openTmuxWindow(
-      `oc-${t.slug}`,
-      `http://127.0.0.1:${t.opencodePort}`,
-      t.opencodeSessionId!
-    )
-    showMessage("Opened tmux window")
+    if (t.mode === "team") {
+      try {
+        const members = await api.listTeamMembers(t.id)
+        const active = members.filter(
+          (m) => m.opencodePort && m.opencodeSessionId
+        )
+        if (active.length === 0) {
+          showMessage("No team members with active sessions")
+          return
+        }
+        const sorted = [
+          ...active.filter((m) => m.role === "leader"),
+          ...active.filter((m) => m.role === "member"),
+        ]
+        openTeamTmuxLayout(
+          `team-${t.slug}`,
+          sorted.map((m) => ({
+            serverUrl: `http://127.0.0.1:${m.opencodePort}`,
+            sessionId: m.opencodeSessionId!,
+            label: m.label,
+          }))
+        )
+        showMessage("Opened team tmux layout")
+      } catch (err) {
+        showMessage(`Attach failed: ${(err as Error).message}`)
+      }
+    } else {
+      openTmuxWindow(
+        `oc-${t.slug}`,
+        `http://127.0.0.1:${t.opencodePort}`,
+        t.opencodeSessionId!
+      )
+      showMessage("Opened tmux window")
+    }
   }
 
   useKeyboard((key) => {
@@ -250,7 +288,7 @@ export function TaskDetail(props: { taskId: string }) {
     const hints: KeyHint[] = [{ key: "esc", label: "back" }]
 
     if (t) {
-      if (canAttach(t)) hints.push({ key: "a", label: "attach" })
+      if (canAttach(t)) hints.push({ key: "a", label: t.mode === "team" ? "attach team" : "attach" })
       if (t.status === "pending") hints.push({ key: "s", label: "start" })
       if (t.status !== "archived" && t.status !== "aborted" && t.status !== "failed")
         hints.push({ key: "x", label: "abort" })
@@ -305,7 +343,42 @@ export function TaskDetail(props: { taskId: string }) {
                 </Show>
                 <MetadataRow label="Created" value={timeAgo(t().createdAt)} />
                 <MetadataRow label="Updated" value={timeAgo(t().updatedAt)} />
+                <Show when={t().mode === "team"}>
+                  <MetadataRow label="Mode" value="team" valueFg={colors.accent} />
+                </Show>
               </box>
+
+              {/* Team Members */}
+              <Show when={t().mode === "team" && teamMembers().length > 0}>
+                <box flexDirection="column" width="100%">
+                  <text fg={colors.textDim}>
+                    Team Members ({teamMembers().length})
+                  </text>
+                  <For each={teamMembers()}>
+                    {(member) => {
+                      const statusColor = () => {
+                        switch (member.status) {
+                          case "running": return colors.success
+                          case "idle": return colors.accent
+                          case "failed": return colors.error
+                          case "starting": return colors.warning
+                          default: return colors.textMuted
+                        }
+                      }
+                      return (
+                        <box flexDirection="row" width="100%" gap={1} paddingLeft={2}>
+                          <text fg={statusColor()}>*</text>
+                          <text fg={colors.text} width={12}>{member.label}</text>
+                          <text fg={statusColor()} width={10}>{member.status}</text>
+                          <Show when={member.opencodePort}>
+                            <text fg={colors.textMuted}>port {member.opencodePort}</text>
+                          </Show>
+                        </box>
+                      )
+                    }}
+                  </For>
+                </box>
+              </Show>
 
               {/* Error */}
               <Show when={t().error}>

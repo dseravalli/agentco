@@ -1,10 +1,12 @@
+import * as logger from "../lib/log.js";
+
 const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
 const MODEL = "claude-3-5-haiku-latest";
 
 export async function generateTitle(description: string): Promise<string> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
-    console.warn("[title] ANTHROPIC_API_KEY not set, using fallback");
+    logger.warn("[title]", "ANTHROPIC_API_KEY not set, using fallback");
     return fallbackTitle(description);
   }
 
@@ -30,7 +32,7 @@ export async function generateTitle(description: string): Promise<string> {
     });
 
     if (!res.ok) {
-      console.warn(`[title] API error ${res.status}, using fallback`);
+      logger.warn("[title]", `API error ${res.status}, using fallback`);
       return fallbackTitle(description);
     }
 
@@ -44,7 +46,7 @@ export async function generateTitle(description: string): Promise<string> {
     // Strip quotes if the model wrapped the title
     return text.replace(/^["']|["']$/g, "");
   } catch (err) {
-    console.warn(`[title] generation failed: ${err instanceof Error ? err.message : err}`);
+    logger.warn("[title]", `generation failed: ${err instanceof Error ? err.message : err}`);
     return fallbackTitle(description);
   }
 }

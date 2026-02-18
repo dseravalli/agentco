@@ -1,5 +1,6 @@
 import type { TaskStatus, WSEvent } from "../types.js";
 import type { OpenCodeQuestion } from "./opencode.js";
+import * as logger from "../lib/log.js";
 
 type EventCallback = (event: WSEvent) => void;
 
@@ -15,7 +16,7 @@ export function broadcast(event: WSEvent): void {
     try {
       cb(event);
     } catch (err) {
-      console.error("Error in event subscriber:", err);
+      logger.error("[events]", `Error in event subscriber: ${err}`);
     }
   }
 }
@@ -46,6 +47,10 @@ export async function monitorOpenCodeEvents(
   return controller;
 }
 
+function ssePrefix(taskId: string) {
+  return `[sse:${taskId.slice(0, 8)}]`;
+}
+
 async function startEventLoop(
   url: string,
   taskId: string,
@@ -57,7 +62,7 @@ async function startEventLoop(
 
   while (!signal.aborted && retries < maxRetries) {
     try {
-      console.log(`[sse:${taskId.slice(0, 8)}] connecting to ${url}`);
+      logger.debug(ssePrefix(taskId), `connecting to ${url}`);
       const response = await fetch(url, {
         headers: { Accept: "text/event-stream" },
         signal,
@@ -67,7 +72,7 @@ async function startEventLoop(
         throw new Error(`SSE connection failed: ${response.status}`);
       }
 
-      console.log(`[sse:${taskId.slice(0, 8)}] connected`);
+      logger.debug(ssePrefix(taskId), "connected");
       retries = 0;
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
@@ -76,7 +81,7 @@ async function startEventLoop(
       while (!signal.aborted) {
         const { done, value } = await reader.read();
         if (done) {
-          console.log(`[sse:${taskId.slice(0, 8)}] stream ended`);
+          logger.debug(ssePrefix(taskId), "stream ended");
           break;
         }
 
@@ -103,15 +108,13 @@ async function startEventLoop(
       retries++;
       const backoff = Math.min(1000 * Math.pow(2, Math.min(retries, 5)), 30000);
       const msg = err instanceof Error ? err.message : String(err);
-      console.warn(
-        `[sse:${taskId.slice(0, 8)}] connection lost (${msg}), retry ${retries}/${maxRetries} in ${backoff}ms`
-      );
+      logger.warn(ssePrefix(taskId), `connection lost (${msg}), retry ${retries}/${maxRetries} in ${backoff}ms`);
       await new Promise((resolve) => setTimeout(resolve, backoff));
     }
   }
 
   if (retries >= maxRetries) {
-    console.error(`[sse:${taskId.slice(0, 8)}] gave up after ${maxRetries} retries`);
+    logger.error(ssePrefix(taskId), `gave up after ${maxRetries} retries`);
   }
 }
 
@@ -129,14 +132,30 @@ export function clearTaskAgentMode(taskId: string): void {
   lastSeenAgentMode.delete(taskId);
 }
 
+// SSE events worth logging at info level (status-changing or user-facing)
+const SSE_INFO_EVENTS = new Set([
+  "session.idle",
+  "session.error",
+  "question.asked",
+  "question.answered",
+  "question.rejected",
+  "permission.updated",
+  "permission.replied",
+]);
+
 function handleSSEEvent(
   data: Record<string, unknown>,
   taskId: string,
   onStatusChange: (event: StatusChangeEvent) => void
 ): void {
   const eventType = data.type as string;
+  const prefix = ssePrefix(taskId);
 
-  console.log(`[sse:${taskId.slice(0, 8)}] event: ${eventType}`);
+  if (SSE_INFO_EVENTS.has(eventType)) {
+    logger.info(prefix, `event: ${eventType}`);
+  } else {
+    logger.debug(prefix, `event: ${eventType}`);
+  }
 
   broadcast({ type: "agent:event", taskId, event: data });
 
@@ -144,17 +163,16 @@ function handleSSEEvent(
   if (eventType === "question.asked") {
     const port = taskPorts.get(taskId);
     if (port) {
-      // Fetch the full question data from the API
       fetchQuestions(port, taskId, onStatusChange);
     } else {
-      console.warn(`[sse:${taskId.slice(0, 8)}] question.asked but no port registered`);
+      logger.warn(prefix, "question.asked but no port registered");
       onStatusChange({ status: "needs_input" });
     }
   }
 
   // Question was answered — agent resumes
   if (eventType === "question.answered") {
-    console.log(`[sse:${taskId.slice(0, 8)}] question answered, agent resuming`);
+    logger.info(prefix, "question answered, agent resuming");
     onStatusChange({ status: "agent_running" });
   }
 
@@ -166,7 +184,7 @@ function handleSSEEvent(
       sessionID: string;
       metadata: Record<string, unknown>;
     };
-    console.log(`[sse:${taskId.slice(0, 8)}] permission requested: ${props.title} (${props.id})`);
+    logger.info(prefix, `permission requested: ${props.title} (${props.id})`);
     onStatusChange({
       status: "needs_input",
       permission: props,
@@ -175,14 +193,14 @@ function handleSSEEvent(
 
   // Permission was replied to — agent should resume
   if (eventType === "permission.replied") {
-    console.log(`[sse:${taskId.slice(0, 8)}] permission replied, agent resuming`);
+    logger.info(prefix, "permission replied, agent resuming");
     onStatusChange({ status: "agent_running" });
   }
 
   // Session is idle — agent finished its current turn
   if (eventType === "session.idle") {
     const props = data.properties as { sessionID: string };
-    console.log(`[sse:${taskId.slice(0, 8)}] session idle: ${props.sessionID}`);
+    logger.info(prefix, `session idle: ${props.sessionID}`);
     onStatusChange({ status: "agent_done" });
   }
 
@@ -190,7 +208,7 @@ function handleSSEEvent(
   if (eventType === "session.error") {
     const props = data.properties as { error?: { data?: { message?: string } } };
     const errorMsg = props.error?.data?.message ?? JSON.stringify(props.error);
-    console.error(`[sse:${taskId.slice(0, 8)}] session error: ${errorMsg}`);
+    logger.error(prefix, `session error: ${errorMsg}`);
     onStatusChange({ status: "failed", error: errorMsg });
   }
 
@@ -202,7 +220,7 @@ function handleSSEEvent(
       const prevMode = lastSeenAgentMode.get(taskId);
       if (prevMode !== newMode) {
         lastSeenAgentMode.set(taskId, newMode);
-        console.log(`[sse:${taskId.slice(0, 8)}] agent mode changed: ${prevMode ?? "unknown"} → ${newMode}`);
+        logger.debug(prefix, `agent mode changed: ${prevMode ?? "unknown"} → ${newMode}`);
         onStatusChange({ status: "agent_running", agentMode: newMode });
       }
     }
@@ -223,23 +241,24 @@ async function fetchQuestions(
   taskId: string,
   onStatusChange: (event: StatusChangeEvent) => void
 ): Promise<void> {
+  const prefix = ssePrefix(taskId);
   try {
     const res = await fetch(`http://127.0.0.1:${port}/question`);
     if (!res.ok) {
-      console.warn(`[sse:${taskId.slice(0, 8)}] failed to fetch questions: ${res.status}`);
+      logger.warn(prefix, `failed to fetch questions: ${res.status}`);
       onStatusChange({ status: "needs_input" });
       return;
     }
     const questions: OpenCodeQuestion[] = await res.json();
     if (questions.length > 0) {
       const q = questions[0];
-      console.log(`[sse:${taskId.slice(0, 8)}] question: ${q.id} (${q.questions.length} sub-questions)`);
+      logger.info(prefix, `question: ${q.id} (${q.questions.length} sub-questions)`);
       onStatusChange({ status: "needs_input", question: q });
     } else {
       onStatusChange({ status: "needs_input" });
     }
   } catch (err) {
-    console.warn(`[sse:${taskId.slice(0, 8)}] error fetching questions:`, err);
+    logger.warn(prefix, `error fetching questions: ${err}`);
     onStatusChange({ status: "needs_input" });
   }
 }

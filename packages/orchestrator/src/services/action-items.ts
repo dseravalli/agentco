@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { FileDiff } from "./opencode.js";
+import * as logger from "../lib/log.js";
 
 export interface ActionItem {
   category: "migration" | "env_var" | "schema_change" | "config_change";
@@ -218,7 +219,7 @@ Be conservative — only flag things that genuinely require manual attention.`;
 export async function detectActionItemsWithLLM(diffs: FileDiff[]): Promise<ActionItem[]> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
-    console.warn("[action-items] ANTHROPIC_API_KEY not set, skipping LLM analysis");
+    logger.warn("[action-items]", "ANTHROPIC_API_KEY not set, skipping LLM analysis");
     return [];
   }
 
@@ -269,7 +270,7 @@ export async function detectActionItemsWithLLM(diffs: FileDiff[]): Promise<Actio
     );
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    console.warn(`[action-items] LLM analysis failed: ${msg}`);
+    logger.warn("[action-items]", `LLM analysis failed: ${msg}`);
     return [];
   }
 }
@@ -282,13 +283,13 @@ export async function analyzeCompletion(diffs: FileDiff[]): Promise<ActionItem[]
   const heuristicItems = detectActionItems(diffs);
 
   if (heuristicItems.length > 0) {
-    console.log(`[action-items] heuristics found ${heuristicItems.length} item(s), skipping LLM`);
+    logger.debug("[action-items]", `heuristics found ${heuristicItems.length} item(s), skipping LLM`);
     return heuristicItems;
   }
 
-  console.log("[action-items] heuristics found nothing, running LLM analysis");
+  logger.debug("[action-items]", "heuristics found nothing, running LLM analysis");
   const llmItems = await detectActionItemsWithLLM(diffs);
-  console.log(`[action-items] LLM found ${llmItems.length} item(s)`);
+  logger.debug("[action-items]", `LLM found ${llmItems.length} item(s)`);
   return llmItems;
 }
 

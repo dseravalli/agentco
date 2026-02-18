@@ -1,6 +1,6 @@
 import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
-import type { AgentCoConfig, TaskStatus, AlertType } from "../types.js";
+import type { AgentCoConfig, TaskStatus, TaskMode, AlertType, TeamMemberRole, TeamMemberStatus } from "../types.js";
 
 export const projects = sqliteTable("projects", {
   id: text("id")
@@ -31,11 +31,29 @@ export const tasks = sqliteTable("tasks", {
   opencodeSessionId: text("opencode_session_id"),
   devPreviewPort: integer("dev_preview_port"),
   databaseName: text("database_name"),
+  mode: text("mode").$type<TaskMode>().default("solo"),
   model: text("model"),
   prUrl: text("pr_url"),
   error: text("error"),
   createdAt: text("created_at").default(sql`(datetime('now'))`),
   updatedAt: text("updated_at").default(sql`(datetime('now'))`),
+});
+
+export const teamMembers = sqliteTable("team_members", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  taskId: text("task_id")
+    .notNull()
+    .references(() => tasks.id),
+  role: text("role").$type<TeamMemberRole>().notNull(),
+  label: text("label").notNull(),
+  opencodePort: integer("opencode_port"),
+  opencodeSessionId: text("opencode_session_id"),
+  status: text("status").$type<TeamMemberStatus>().default("pending"),
+  assignedTasks: text("assigned_tasks", { mode: "json" }).$type<string[]>(),
+  assignedFiles: text("assigned_files", { mode: "json" }).$type<string[]>(),
+  createdAt: text("created_at").default(sql`(datetime('now'))`),
 });
 
 export const alerts = sqliteTable("alerts", {

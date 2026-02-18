@@ -2,7 +2,7 @@ import { Command } from "commander";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import * as client from "../client.js";
-import { assertTmux, openTmuxWindow } from "../utils/tmux.js";
+import { assertTmux, openTmuxWindow, openTeamTmuxLayout } from "../utils/tmux.js";
 
 export function registerTaskCommands(program: Command) {
   const task = program.command("task").description("Manage tasks");
@@ -11,11 +11,12 @@ export function registerTaskCommands(program: Command) {
     .command("create <project> [description]")
     .description("Create and start a new task")
     .option("-f, --file <path>", "Read task description from a markdown file")
+    .option("--team", "Create a team task with leader + member agents")
     .action(
       async (
         projectName: string,
         description: string | undefined,
-        opts: { file?: string }
+        opts: { file?: string; team?: boolean }
       ) => {
         try {
           let taskDescription: string;
@@ -38,9 +39,11 @@ export function registerTaskCommands(program: Command) {
             process.exit(1);
           }
 
+          const mode = opts.team ? "team" as const : undefined;
           const result = await client.createTask(
             project.id,
-            taskDescription
+            taskDescription,
+            mode
           );
           console.log(
             `Task created: ${result.title} (${result.id.slice(0, 8)})`
@@ -87,6 +90,7 @@ export function registerTaskCommands(program: Command) {
         const header = padRow(
           "ID",
           "Project",
+          "Mode",
           "Title",
           "Status",
           "Branch",
@@ -100,6 +104,7 @@ export function registerTaskCommands(program: Command) {
             padRow(
               t.id.slice(0, 8),
               projectMap.get(t.projectId) || "?",
+              t.mode,
               truncate(t.title, 30),
               t.status,
               t.branchName || "—",
@@ -143,20 +148,49 @@ export function registerTaskCommands(program: Command) {
           process.exit(1);
         }
 
-        if (!match.opencodePort || !match.opencodeSessionId) {
-          console.error("Task has no opencode session to attach to.");
-          process.exit(1);
-        }
+        if (match.mode === "team") {
+          const members = await client.listTeamMembers(match.id);
+          const active = members.filter(
+            (m) => m.opencodePort && m.opencodeSessionId
+          );
+          if (active.length === 0) {
+            console.error("No team members with active sessions to attach to.");
+            process.exit(1);
+          }
 
-        const url = `http://127.0.0.1:${match.opencodePort}`;
-        console.log(
-          `Attaching to "${match.title}" (port ${match.opencodePort})...`
-        );
-        openTmuxWindow(
-          `oc-${match.slug}`,
-          url,
-          match.opencodeSessionId
-        );
+          // Leader first, then workers
+          const sorted = [
+            ...active.filter((m) => m.role === "leader"),
+            ...active.filter((m) => m.role === "member"),
+          ];
+
+          console.log(
+            `Attaching to team "${match.title}" (${sorted.length} agents)...`
+          );
+          openTeamTmuxLayout(
+            `team-${match.slug}`,
+            sorted.map((m) => ({
+              serverUrl: `http://127.0.0.1:${m.opencodePort}`,
+              sessionId: m.opencodeSessionId!,
+              label: m.label,
+            }))
+          );
+        } else {
+          if (!match.opencodePort || !match.opencodeSessionId) {
+            console.error("Task has no opencode session to attach to.");
+            process.exit(1);
+          }
+
+          const url = `http://127.0.0.1:${match.opencodePort}`;
+          console.log(
+            `Attaching to "${match.title}" (port ${match.opencodePort})...`
+          );
+          openTmuxWindow(
+            `oc-${match.slug}`,
+            url,
+            match.opencodeSessionId
+          );
+        }
       } catch (err) {
         console.error(`Failed: ${(err as Error).message}`);
         process.exit(1);
@@ -201,7 +235,7 @@ export function registerTaskCommands(program: Command) {
 }
 
 function padRow(...cols: string[]): string {
-  const widths = [10, 14, 32, 16, 34, 6];
+  const widths = [10, 14, 6, 32, 16, 34, 6];
   return cols.map((col, i) => col.padEnd(widths[i] || 20)).join(" ");
 }
 

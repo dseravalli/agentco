@@ -7,7 +7,7 @@ import { Header } from "../components/Header.js"
 import { KeyHints, type KeyHint } from "../components/KeyHints.js"
 import { StatusBadge } from "../components/StatusBadge.js"
 import { colors } from "../lib/theme.js"
-import { isTmux, openTmuxWindow } from "../lib/tmux.js"
+import { isTmux, openTmuxWindow, openTeamTmuxLayout } from "../lib/tmux.js"
 import type { Task, TaskStatus } from "../lib/types.js"
 
 const AGENTCO_URL = process.env.AGENTCO_URL || "http://localhost:8080"
@@ -104,16 +104,50 @@ export function TaskList() {
     setMode({ type: "confirm", action, onConfirm })
   }
 
-  function handleAttach() {
+  function canAttachTask(t: Task): boolean {
+    if (!ATTACHABLE.includes(t.status)) return false
+    if (t.mode === "team") return true
+    return t.opencodePort !== null && t.opencodeSessionId !== null
+  }
+
+  async function handleAttach() {
     const t = selectedTask()
-    if (!t) return
-    if (!ATTACHABLE.includes(t.status) || !t.opencodePort || !t.opencodeSessionId) return
+    if (!t || !canAttachTask(t)) return
     if (!isTmux()) {
       showMessage("Not in a tmux session")
       return
     }
-    openTmuxWindow(`oc-${t.slug}`, `http://127.0.0.1:${t.opencodePort}`, t.opencodeSessionId)
-    showMessage("Opened tmux window")
+
+    if (t.mode === "team") {
+      try {
+        const members = await api.listTeamMembers(t.id)
+        const active = members.filter(
+          (m) => m.opencodePort && m.opencodeSessionId
+        )
+        if (active.length === 0) {
+          showMessage("No team members with active sessions")
+          return
+        }
+        const sorted = [
+          ...active.filter((m) => m.role === "leader"),
+          ...active.filter((m) => m.role === "member"),
+        ]
+        openTeamTmuxLayout(
+          `team-${t.slug}`,
+          sorted.map((m) => ({
+            serverUrl: `http://127.0.0.1:${m.opencodePort}`,
+            sessionId: m.opencodeSessionId!,
+            label: m.label,
+          }))
+        )
+        showMessage("Opened team tmux layout")
+      } catch (err) {
+        showMessage(`Attach failed: ${(err as Error).message}`)
+      }
+    } else {
+      openTmuxWindow(`oc-${t.slug}`, `http://127.0.0.1:${t.opencodePort}`, t.opencodeSessionId!)
+      showMessage("Opened tmux window")
+    }
   }
 
   useKeyboard((key) => {
@@ -235,8 +269,8 @@ export function TaskList() {
     ]
     const t = selectedTask()
     if (t) {
-      if (ATTACHABLE.includes(t.status) && t.opencodePort && t.opencodeSessionId)
-        hints.push({ key: "a", label: "attach" })
+      if (canAttachTask(t))
+        hints.push({ key: "a", label: t.mode === "team" ? "attach team" : "attach" })
       if (t.status === "pending") hints.push({ key: "s", label: "start" })
       if (t.status !== "archived" && t.status !== "aborted" && t.status !== "failed")
         hints.push({ key: "x", label: "abort" })
@@ -300,6 +334,9 @@ export function TaskList() {
                     {isSelected() ? ">" : " "}
                   </text>
                   <text fg={colors.textMuted}>[{projName()}]</text>
+                  <Show when={task.mode === "team"}>
+                    <text fg={colors.accent}>[team]</text>
+                  </Show>
                   <text fg={alertCount() > 0 ? colors.warning : "transparent"}>
                     {alertCount() > 0 ? "*" : " "}
                   </text>

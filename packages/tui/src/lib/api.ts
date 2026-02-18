@@ -1,4 +1,4 @@
-import type { Project, Task, Alert } from "./types.js"
+import type { Project, Task, TaskMode, Alert, TeamMember } from "./types.js"
 
 export class ApiClient {
   constructor(private baseUrl: string) {}
@@ -44,11 +44,15 @@ export class ApiClient {
     return this.request(`/api/tasks/${id}`)
   }
 
-  async createTask(projectId: string, description: string, model?: string): Promise<Task> {
+  async createTask(projectId: string, description: string, model?: string, mode?: TaskMode): Promise<Task> {
     return this.request("/api/tasks", {
       method: "POST",
-      body: JSON.stringify({ projectId, description, model }),
+      body: JSON.stringify({ projectId, description, model, mode }),
     })
+  }
+
+  async listTeamMembers(taskId: string): Promise<TeamMember[]> {
+    return this.request(`/api/tasks/${taskId}/members`)
   }
 
   async listModels(): Promise<string[]> {

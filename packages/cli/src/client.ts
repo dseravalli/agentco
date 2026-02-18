@@ -1,33 +1,8 @@
+import type { Project, Task, TaskMode, TeamMember } from "@agentco/shared";
+
+export type { Project, Task, TaskMode, TeamMember };
+
 const BASE_URL = process.env.AGENTCO_URL || "http://localhost:8080";
-
-export interface Project {
-  id: string;
-  name: string;
-  slug: string;
-  rootPath: string;
-  config: unknown;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface Task {
-  id: string;
-  projectId: string;
-  slug: string;
-  title: string;
-  description: string;
-  status: string;
-  branchName: string | null;
-  worktreePath: string | null;
-  opencodePort: number | null;
-  opencodeSessionId: string | null;
-  devPreviewPort: number | null;
-  databaseName: string | null;
-  prUrl: string | null;
-  error: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   let res: Response;
@@ -63,6 +38,10 @@ export async function createProject(name: string, rootPath: string): Promise<Pro
   });
 }
 
+export async function deleteProject(id: string): Promise<void> {
+  await request(`/api/projects/${id}`, { method: "DELETE" });
+}
+
 export async function findProjectByName(name: string): Promise<Project | undefined> {
   const projects = await listProjects();
   const lower = name.toLowerCase();
@@ -78,12 +57,17 @@ export async function listTasks(projectId?: string): Promise<Task[]> {
 
 export async function createTask(
   projectId: string,
-  description: string
+  description: string,
+  mode?: TaskMode
 ): Promise<Task> {
   return request("/api/tasks", {
     method: "POST",
-    body: JSON.stringify({ projectId, description }),
+    body: JSON.stringify({ projectId, description, mode }),
   });
+}
+
+export async function listTeamMembers(taskId: string): Promise<TeamMember[]> {
+  return request(`/api/tasks/${taskId}/members`);
 }
 
 export async function startTask(taskId: string): Promise<void> {

@@ -61,6 +61,12 @@ projectRoutes.delete("/:id", (c) => {
   const project = findProject(eq(schema.projects.id, c.req.param("id")));
   if (!project) return c.json({ error: "Project not found" }, 404);
 
+  const tasks = db.select().from(schema.tasks).where(eq(schema.tasks.projectId, project.id)).all();
+  for (const task of tasks) {
+    db.delete(schema.teamMembers).where(eq(schema.teamMembers.taskId, task.id)).run();
+    db.delete(schema.alerts).where(eq(schema.alerts.taskId, task.id)).run();
+  }
+  db.delete(schema.tasks).where(eq(schema.tasks.projectId, project.id)).run();
   db.delete(schema.projects).where(eq(schema.projects.id, project.id)).run();
   return c.json({ ok: true });
 });
