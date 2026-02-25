@@ -75,7 +75,7 @@ projectRoutes.post("/:id/sync", async (c) => {
   const project = findProject(eq(schema.projects.id, c.req.param("id")));
   if (!project) return c.json({ error: "Project not found" }, 404);
 
-  let config: AgentCoConfig | null = null;
+  let config: AgentCoConfig | null;
   try {
     const configPath = path.join(project.rootPath, ".agentco.json");
     const content = await fs.readFile(configPath, "utf-8");

@@ -1,17 +1,8 @@
 import { Hono } from "hono";
-import type { WSContext } from "hono/ws";
+import type { UpgradeWebSocket } from "hono/ws";
 import { subscribe } from "../services/event-monitor.js";
 import type { WSEvent } from "../types.js";
 import * as logger from "../lib/log.js";
-
-type UpgradeWebSocket = (
-  handler: (c: any) => {
-    onOpen?: (evt: Event, ws: WSContext) => void;
-    onMessage?: (evt: MessageEvent, ws: WSContext) => void;
-    onClose?: (evt: CloseEvent, ws: WSContext) => void;
-    onError?: (evt: Event, ws: WSContext) => void;
-  },
-) => any;
 
 export function createWSRoutes(upgradeWebSocket: UpgradeWebSocket) {
   const wsRoutes = new Hono();

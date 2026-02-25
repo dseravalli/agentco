@@ -18,10 +18,10 @@ export function KeyHints(props: { hints: KeyHint[] }) {
     >
       <For each={props.hints}>
         {(hint) => (
-          <text>
-            <span fg={colors.key}>{hint.key}</span>
-            <span fg={colors.keyLabel}> {hint.label}</span>
-          </text>
+          <box flexDirection="row">
+            <text fg={colors.key}>{hint.key}</text>
+            <text fg={colors.keyLabel}> {hint.label}</text>
+          </box>
         )}
       </For>
     </box>

@@ -114,7 +114,9 @@ export function TaskDetail(props: { taskId: string }) {
       try {
         const members = await api.listTeamMembers(t.id);
         setTeamMembers(members);
-      } catch {}
+      } catch {
+        // non-critical, ignore
+      }
     }
   });
 

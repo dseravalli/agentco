@@ -23,10 +23,8 @@ export function Header(props: { status: Accessor<SyncStatus>; baseUrl: string })
   return (
     <box width="100%" height={1} flexDirection="row" justifyContent="space-between" paddingX={1}>
       <box flexDirection="row" gap={2}>
-        <text>
-          <span fg={colors.accent}>
-            <b>AgentCo</b>
-          </span>
+        <text fg={colors.accent}>
+          <b>AgentCo</b>
         </text>
         <Show when={message()}>
           <text fg={colors.warning}>{message()}</text>

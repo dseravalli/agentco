@@ -9,6 +9,7 @@
   "scripts": {
     "build": "tsc",
     "format": "prettier --write src/",
+    "lint": "eslint src/",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

@@ -91,7 +91,9 @@ export function TaskCreate() {
     } finally {
       try {
         unlinkSync(tmpFile);
-      } catch {}
+      } catch {
+        // cleanup is best-effort
+      }
     }
   }
 

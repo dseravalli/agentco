@@ -17,6 +17,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   } catch (err) {
     throw new Error(
       `Cannot connect to orchestrator at ${BASE_URL}. Is it running?\n  ${(err as Error).message}`,
+      { cause: err },
     );
   }
 

@@ -1,4 +1,4 @@
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
 import { eq } from "drizzle-orm";
 import { findTask } from "../db/index.js";
 import { schema } from "../db/index.js";
@@ -27,7 +27,7 @@ proxyRoutes.all("/agent/:taskId/*", async (c) => {
   return proxyTo(c, task.opencodePort, `/agent/${taskId}`);
 });
 
-async function proxyTo(c: any, port: number, stripPrefix: string) {
+async function proxyTo(c: Context, port: number, stripPrefix: string) {
   const url = new URL(c.req.url);
   const targetPath = url.pathname.slice(stripPrefix.length) || "/";
   const targetUrl = `http://127.0.0.1:${port}${targetPath}${url.search}`;

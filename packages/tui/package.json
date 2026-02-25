@@ -7,6 +7,7 @@
     "dev": "bun run src/index.tsx",
     "build": "bun run build.ts",
     "format": "prettier --write src/",
+    "lint": "eslint src/",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

@@ -1,6 +1,5 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import type { AgentCoConfig } from "../types.js";
 import * as logger from "../lib/log.js";
 
 export async function copyWorktreeFiles(

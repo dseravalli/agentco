@@ -14,6 +14,7 @@ function getTtyFd(): number | null {
 }
 
 function sanitize(text: string): string {
+  // eslint-disable-next-line no-control-regex
   return text.replace(/[\x00-\x1f;\\]/g, " ").trim();
 }
 

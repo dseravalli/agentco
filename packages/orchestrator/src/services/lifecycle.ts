@@ -7,7 +7,6 @@ import {
   findTeamMembers,
   type Task,
   type Project,
-  type TeamMember,
 } from "../db/index.js";
 import type { AgentCoConfig, TaskStatus, AlertType, TeamPlan, TeamMemberStatus } from "../types.js";
 import * as git from "./git.js";
@@ -44,10 +43,12 @@ function logd(taskId: string, message: string) {
   logger.debug(taskPrefix(taskId), message);
 }
 
-function updateTaskStatus(taskId: string, status: TaskStatus, extra?: Record<string, unknown>) {
+type TaskUpdate = Partial<typeof schema.tasks.$inferInsert>;
+
+function updateTaskStatus(taskId: string, status: TaskStatus, extra?: TaskUpdate) {
   log(taskId, `status → ${status}`);
   db.update(schema.tasks)
-    .set({ status, updatedAt: new Date().toISOString(), ...extra } as any)
+    .set({ status, updatedAt: new Date().toISOString(), ...extra })
     .where(eq(schema.tasks.id, taskId))
     .run();
 

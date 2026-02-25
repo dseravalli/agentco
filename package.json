@@ -13,6 +13,9 @@
     "cli": "bun run packages/cli/src/index.ts"
   },
   "devDependencies": {
-    "prettier": "^3.8.1"
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.0.2",
+    "prettier": "^3.8.1",
+    "typescript-eslint": "^8.56.1"
   }
 }
