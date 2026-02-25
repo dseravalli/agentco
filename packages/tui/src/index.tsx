@@ -1,18 +1,18 @@
-import { render, useRenderer } from "@opentui/solid"
-import { Switch, Match } from "solid-js"
-import { SDKProvider } from "./providers/sdk.js"
-import { SyncProvider } from "./providers/sync.js"
-import { RouteProvider, useRoute } from "./providers/route.js"
-import { ToastProvider, useToast } from "./providers/toast.js"
-import { TaskList } from "./views/TaskList.js"
-import { TaskDetail } from "./views/TaskDetail.js"
-import { TaskCreate } from "./views/TaskCreate.js"
-import { copyToClipboard } from "./lib/clipboard.js"
+import { render, useRenderer } from "@opentui/solid";
+import { Switch, Match } from "solid-js";
+import { SDKProvider } from "./providers/sdk.js";
+import { SyncProvider } from "./providers/sync.js";
+import { RouteProvider, useRoute } from "./providers/route.js";
+import { ToastProvider, useToast } from "./providers/toast.js";
+import { TaskList } from "./views/TaskList.js";
+import { TaskDetail } from "./views/TaskDetail.js";
+import { TaskCreate } from "./views/TaskCreate.js";
+import { copyToClipboard } from "./lib/clipboard.js";
 
-const AGENTCO_URL = process.env.AGENTCO_URL || "http://localhost:8080"
+const AGENTCO_URL = process.env.AGENTCO_URL || "http://localhost:8080";
 
 function Router() {
-  const { view } = useRoute()
+  const { view } = useRoute();
 
   return (
     <Switch>
@@ -26,28 +26,28 @@ function Router() {
         <TaskCreate />
       </Match>
     </Switch>
-  )
+  );
 }
 
 function Shell() {
-  const renderer = useRenderer()
-  const toast = useToast()
+  const renderer = useRenderer();
+  const toast = useToast();
 
   const handleMouseUp = () => {
-    const selection = renderer.getSelection()
-    if (!selection) return
-    const text = selection.getSelectedText()
-    if (!text) return
-    copyToClipboard(text)
-    toast.show("Copied to clipboard")
-    renderer.clearSelection()
-  }
+    const selection = renderer.getSelection();
+    if (!selection) return;
+    const text = selection.getSelectedText();
+    if (!text) return;
+    copyToClipboard(text);
+    toast.show("Copied to clipboard");
+    renderer.clearSelection();
+  };
 
   return (
     <box width="100%" height="100%" onMouseUp={handleMouseUp}>
       <Router />
     </box>
-  )
+  );
 }
 
 const App = () => {
@@ -61,7 +61,7 @@ const App = () => {
         </RouteProvider>
       </SyncProvider>
     </SDKProvider>
-  )
-}
+  );
+};
 
-render(App)
+render(App);

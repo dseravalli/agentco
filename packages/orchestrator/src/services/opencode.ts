@@ -10,18 +10,25 @@ const processes = new Map<number, ReturnType<typeof execa>>();
 export async function startOpencode(
   worktreePath: string,
   port: number,
-  dashboardOrigin: string
+  dashboardOrigin: string,
 ): Promise<void> {
-  logger.debug("[opencode]", `spawning: ${OPENCODE_BIN} serve --port ${port} --cors ${dashboardOrigin}`);
+  logger.debug(
+    "[opencode]",
+    `spawning: ${OPENCODE_BIN} serve --port ${port} --cors ${dashboardOrigin}`,
+  );
   logger.debug("[opencode]", `cwd: ${worktreePath}`);
 
-  const proc = execa(OPENCODE_BIN, ["serve", "--port", String(port), "--cors", dashboardOrigin, "--print-logs"], {
-    cwd: worktreePath,
-    reject: false,
-    stdout: "pipe",
-    stderr: "pipe",
-    detached: true,
-  });
+  const proc = execa(
+    OPENCODE_BIN,
+    ["serve", "--port", String(port), "--cors", dashboardOrigin, "--print-logs"],
+    {
+      cwd: worktreePath,
+      reject: false,
+      stdout: "pipe",
+      stderr: "pipe",
+      detached: true,
+    },
+  );
 
   proc.stdout?.on("data", (chunk: Buffer) => {
     const text = chunk.toString().trim();
@@ -133,10 +140,7 @@ function createClient(port: number) {
   });
 }
 
-export async function createSession(
-  port: number,
-  title: string
-): Promise<string> {
+export async function createSession(port: number, title: string): Promise<string> {
   const client = createClient(port);
   const result = await client.session.create({
     body: { title },
@@ -154,7 +158,7 @@ export async function sendPrompt(
   options?: {
     model?: { providerID: string; modelID: string };
     agent?: string;
-  }
+  },
 ): Promise<void> {
   const body: Record<string, unknown> = {
     parts: [{ type: "text", text }],
@@ -176,10 +180,7 @@ export async function sendPrompt(
   }
 }
 
-export async function abortSession(
-  port: number,
-  sessionId: string
-): Promise<void> {
+export async function abortSession(port: number, sessionId: string): Promise<void> {
   const client = createClient(port);
   await client.session.abort({
     path: { id: sessionId },
@@ -190,7 +191,7 @@ export async function respondToPermission(
   port: number,
   sessionId: string,
   permissionId: string,
-  response: "once" | "always" | "reject"
+  response: "once" | "always" | "reject",
 ): Promise<void> {
   const client = createClient(port);
   await client.postSessionIdPermissionsPermissionId({
@@ -241,19 +242,22 @@ export async function getSessionDiff(port: number, sessionId: string): Promise<F
 
 export async function getSessionMessages(
   port: number,
-  sessionId: string
+  sessionId: string,
 ): Promise<Array<{ info: Record<string, unknown>; parts: Array<Record<string, unknown>> }>> {
   const client = createClient(port);
   const result = await client.session.messages({
     path: { id: sessionId },
   });
-  return (result.data ?? []) as Array<{ info: Record<string, unknown>; parts: Array<Record<string, unknown>> }>;
+  return (result.data ?? []) as Array<{
+    info: Record<string, unknown>;
+    parts: Array<Record<string, unknown>>;
+  }>;
 }
 
 export async function answerQuestion(
   port: number,
   questionId: string,
-  answers: string[][]
+  answers: string[][],
 ): Promise<void> {
   const res = await fetch(`http://127.0.0.1:${port}/question/${questionId}`, {
     method: "POST",

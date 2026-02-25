@@ -6,7 +6,7 @@ import * as logger from "../lib/log.js";
 export async function copyWorktreeFiles(
   projectRoot: string,
   worktreePath: string,
-  filesToCopy: string[]
+  filesToCopy: string[],
 ): Promise<void> {
   for (const file of filesToCopy) {
     const src = path.join(projectRoot, file);
@@ -28,7 +28,7 @@ export async function writeEnvFile(
   worktreePath: string,
   projectRoot: string,
   envOverrides: Record<string, string>,
-  resolvedValues: Record<string, string>
+  resolvedValues: Record<string, string>,
 ): Promise<void> {
   const envPath = path.join(worktreePath, ".env");
   let existingEnv: Record<string, string> = {};
@@ -44,10 +44,7 @@ export async function writeEnvFile(
   // Read parent .env for "inherit" values
   let parentEnv: Record<string, string> = {};
   try {
-    const parentContent = await fs.readFile(
-      path.join(projectRoot, ".env"),
-      "utf-8"
-    );
+    const parentContent = await fs.readFile(path.join(projectRoot, ".env"), "utf-8");
     parentEnv = parseEnv(parentContent);
   } catch {
     // No parent .env
@@ -84,10 +81,7 @@ function parseEnv(content: string): Record<string, string> {
     const key = trimmed.slice(0, eqIdx).trim();
     let val = trimmed.slice(eqIdx + 1).trim();
     // Strip surrounding quotes
-    if (
-      (val.startsWith('"') && val.endsWith('"')) ||
-      (val.startsWith("'") && val.endsWith("'"))
-    ) {
+    if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
       val = val.slice(1, -1);
     }
     env[key] = val;

@@ -1,12 +1,18 @@
 {
   "name": "agentco",
   "private": true,
-  "workspaces": ["packages/*"],
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
     "dev": "bun run --parallel --filter '@agentco/orchestrator' --filter '@agentco/tui' dev",
     "build": "bun run --workspaces build",
+    "format": "bun run --workspaces format",
     "lint": "bun run --workspaces lint",
     "typecheck": "bun run --workspaces typecheck",
     "cli": "bun run packages/cli/src/index.ts"
+  },
+  "devDependencies": {
+    "prettier": "^3.8.1"
   }
 }

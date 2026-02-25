@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "bun run src/index.tsx",
     "build": "bun run build.ts",
+    "format": "prettier --write src/",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

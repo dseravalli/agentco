@@ -47,9 +47,7 @@ taskRoutes.post("/", async (c) => {
   if (!project) return c.json({ error: "Project not found" }, 404);
 
   const slug =
-    slugify(body.description, { lower: true, strict: true }).slice(0, 40) +
-    "-" +
-    nanoid(6);
+    slugify(body.description, { lower: true, strict: true }).slice(0, 40) + "-" + nanoid(6);
 
   const title = await generateTitle(body.description);
 

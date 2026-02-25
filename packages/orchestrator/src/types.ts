@@ -12,10 +12,7 @@ export type {
   WSEvent,
 } from "@agentco/shared";
 
-export {
-  PORT_RANGES,
-  ORCHESTRATOR_PORT,
-} from "@agentco/shared";
+export { PORT_RANGES, ORCHESTRATOR_PORT } from "@agentco/shared";
 
 export type AlertPayload = Alert;
 

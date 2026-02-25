@@ -7,10 +7,7 @@ function buildDbName(projectSlug: string, taskSlug: string): string {
   return `${projectSlug}_${taskSlug}`.replace(/-/g, "_");
 }
 
-function buildConnectionUrl(
-  baseConnectionString: string,
-  dbName: string
-): string {
+function buildConnectionUrl(baseConnectionString: string, dbName: string): string {
   const url = new URL(baseConnectionString);
   url.pathname = `/${dbName}`;
   return url.toString();
@@ -19,7 +16,7 @@ function buildConnectionUrl(
 export async function createDatabase(
   connectionString: string,
   projectSlug: string,
-  taskSlug: string
+  taskSlug: string,
 ): Promise<{ databaseName: string; databaseUrl: string }> {
   const dbName = buildDbName(projectSlug, taskSlug);
   const client = new Client({ connectionString });
@@ -27,10 +24,7 @@ export async function createDatabase(
   try {
     await client.connect();
     // Check if database already exists
-    const result = await client.query(
-      "SELECT 1 FROM pg_database WHERE datname = $1",
-      [dbName]
-    );
+    const result = await client.query("SELECT 1 FROM pg_database WHERE datname = $1", [dbName]);
     if (result.rows.length === 0) {
       await client.query(`CREATE DATABASE "${dbName}"`);
     }
@@ -42,10 +36,7 @@ export async function createDatabase(
   return { databaseName: dbName, databaseUrl };
 }
 
-export async function dropDatabase(
-  connectionString: string,
-  databaseName: string
-): Promise<void> {
+export async function dropDatabase(connectionString: string, databaseName: string): Promise<void> {
   const client = new Client({ connectionString });
 
   try {
@@ -53,7 +44,7 @@ export async function dropDatabase(
     // Terminate existing connections
     await client.query(
       `SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = $1 AND pid <> pg_backend_pid()`,
-      [databaseName]
+      [databaseName],
     );
     await client.query(`DROP DATABASE IF EXISTS "${databaseName}"`);
   } finally {
@@ -61,10 +52,7 @@ export async function dropDatabase(
   }
 }
 
-export async function runMigrations(
-  worktreePath: string,
-  migrateCommand: string
-): Promise<void> {
+export async function runMigrations(worktreePath: string, migrateCommand: string): Promise<void> {
   const result = await execaCommand(migrateCommand, {
     cwd: worktreePath,
     reject: false,
@@ -75,10 +63,7 @@ export async function runMigrations(
   }
 }
 
-export async function runSeed(
-  worktreePath: string,
-  seedCommand: string
-): Promise<void> {
+export async function runSeed(worktreePath: string, seedCommand: string): Promise<void> {
   const result = await execaCommand(seedCommand, {
     cwd: worktreePath,
     reject: false,

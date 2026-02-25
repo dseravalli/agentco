@@ -1,5 +1,14 @@
 import { eq, inArray } from "drizzle-orm";
-import { db, schema, findTask, findProject, findTeamMembers, type Task, type Project, type TeamMember } from "../db/index.js";
+import {
+  db,
+  schema,
+  findTask,
+  findProject,
+  findTeamMembers,
+  type Task,
+  type Project,
+  type TeamMember,
+} from "../db/index.js";
 import type { AgentCoConfig, TaskStatus, AlertType, TeamPlan, TeamMemberStatus } from "../types.js";
 import * as git from "./git.js";
 import * as environment from "./environment.js";
@@ -8,7 +17,13 @@ import * as opencode from "./opencode.js";
 import * as devPreview from "./dev-preview.js";
 import * as pr from "./pr.js";
 import * as portAllocator from "./port-allocator.js";
-import { broadcast, monitorOpenCodeEvents, setTaskPort, clearTaskAgentMode, type StatusChangeEvent } from "./event-monitor.js";
+import {
+  broadcast,
+  monitorOpenCodeEvents,
+  setTaskPort,
+  clearTaskAgentMode,
+  type StatusChangeEvent,
+} from "./event-monitor.js";
 import { analyzeCompletion } from "./action-items.js";
 import fs from "node:fs";
 import path from "node:path";
@@ -44,11 +59,14 @@ function updateTaskError(taskId: string, error: string) {
   updateTaskStatus(taskId, "failed", { error });
 }
 
-function createAlert(taskId: string, type: AlertType, message: string, metadata?: Record<string, unknown>) {
+function createAlert(
+  taskId: string,
+  type: AlertType,
+  message: string,
+  metadata?: Record<string, unknown>,
+) {
   const id = crypto.randomUUID();
-  db.insert(schema.alerts)
-    .values({ id, taskId, type, message, metadata })
-    .run();
+  db.insert(schema.alerts).values({ id, taskId, type, message, metadata }).run();
 
   broadcast({
     type: "task:alert",
@@ -87,7 +105,7 @@ async function setupTaskInfrastructure(
   taskId: string,
   task: Task,
   project: Project,
-  config: AgentCoConfig | null
+  config: AgentCoConfig | null,
 ): Promise<InfrastructureResult> {
   // Git setup
   logd(taskId, `git fetch origin in ${project.rootPath}`);
@@ -120,7 +138,7 @@ async function setupTaskInfrastructure(
     const dbResult = await database.createDatabase(
       config.database.connectionString,
       project.slug,
-      task.slug
+      task.slug,
     );
 
     db.update(schema.tasks)
@@ -151,7 +169,12 @@ async function setupTaskInfrastructure(
     }
 
     logd(taskId, `writing .env overrides`);
-    await environment.writeEnvFile(worktreePath, project.rootPath, config.envOverrides, resolvedValues);
+    await environment.writeEnvFile(
+      worktreePath,
+      project.rootPath,
+      config.envOverrides,
+      resolvedValues,
+    );
   }
 
   // Migrations
@@ -194,15 +217,12 @@ async function startSoloTask(
   taskId: string,
   task: Task,
   config: AgentCoConfig | null,
-  infra: InfrastructureResult
+  infra: InfrastructureResult,
 ): Promise<void> {
   // Allocate port
   const opencodePort = await portAllocator.allocatePort("opencode");
   log(taskId, `allocated opencode port: ${opencodePort}`);
-  db.update(schema.tasks)
-    .set({ opencodePort })
-    .where(eq(schema.tasks.id, taskId))
-    .run();
+  db.update(schema.tasks).set({ opencodePort }).where(eq(schema.tasks.id, taskId)).run();
 
   // Start OpenCode
   log(taskId, `starting opencode serve on port ${opencodePort} in ${infra.worktreePath}`);
@@ -233,11 +253,7 @@ async function startSoloTask(
   // Monitor SSE events
   logd(taskId, `subscribing to SSE events`);
   setTaskPort(taskId, opencodePort);
-  const controller = await monitorOpenCodeEvents(
-    opencodePort,
-    taskId,
-    buildEventHandler(taskId)
-  );
+  const controller = await monitorOpenCodeEvents(opencodePort, taskId, buildEventHandler(taskId));
 
   eventControllers.set(taskId, controller);
 }
@@ -289,11 +305,13 @@ You may read any file in the repository for context, but you must ONLY write to 
 Focus on your assigned tasks. When you are done, stop and report completion.`;
 }
 
-function updateTeamMemberStatus(taskId: string, memberId: string, label: string, status: TeamMemberStatus) {
-  db.update(schema.teamMembers)
-    .set({ status })
-    .where(eq(schema.teamMembers.id, memberId))
-    .run();
+function updateTeamMemberStatus(
+  taskId: string,
+  memberId: string,
+  label: string,
+  status: TeamMemberStatus,
+) {
+  db.update(schema.teamMembers).set({ status }).where(eq(schema.teamMembers.id, memberId)).run();
 
   broadcast({ type: "team:member_status", taskId, memberId, label, status });
 }
@@ -302,7 +320,9 @@ function readTeamPlan(worktreePath: string): TeamPlan {
   const planPath = path.join(worktreePath, TEAM_PLAN_PATH);
 
   if (!fs.existsSync(planPath)) {
-    throw new Error(`Team plan not found at ${TEAM_PLAN_PATH}. The coordinator must write this file.`);
+    throw new Error(
+      `Team plan not found at ${TEAM_PLAN_PATH}. The coordinator must write this file.`,
+    );
   }
 
   const raw = fs.readFileSync(planPath, "utf-8");
@@ -342,7 +362,7 @@ async function startTeamTask(
   task: Task,
   project: Project,
   config: AgentCoConfig | null,
-  infra: InfrastructureResult
+  infra: InfrastructureResult,
 ): Promise<void> {
   // Create .agentco directory in worktree for plan file
   const agentcoDir = path.join(infra.worktreePath, ".agentco");
@@ -385,10 +405,15 @@ async function startTeamTask(
 
   taskAgentMode.set(taskId, "plan");
   log(taskId, `sending coordinator prompt to leader (model: ${modelString})`);
-  await opencode.sendPrompt(leaderPort, leaderSessionId, COORDINATOR_SYSTEM_PROMPT + task.description, {
-    model,
-    agent: "plan",
-  });
+  await opencode.sendPrompt(
+    leaderPort,
+    leaderSessionId,
+    COORDINATOR_SYSTEM_PROMPT + task.description,
+    {
+      model,
+      agent: "plan",
+    },
+  );
 
   // Monitor leader SSE events
   logd(taskId, `subscribing to leader SSE events`);
@@ -396,7 +421,7 @@ async function startTeamTask(
   const leaderController = await monitorOpenCodeEvents(
     leaderPort,
     taskId,
-    buildTeamEventHandler(taskId, leaderId, "leader", infra, task, config)
+    buildTeamEventHandler(taskId, leaderId, "leader", infra, task, config),
   );
 
   eventControllers.set(`${taskId}:${leaderId}`, leaderController);
@@ -407,7 +432,7 @@ async function spawnTeamMembers(
   plan: TeamPlan,
   infra: InfrastructureResult,
   task: Task,
-  config: AgentCoConfig | null
+  config: AgentCoConfig | null,
 ): Promise<void> {
   const DEFAULT_MODEL = "anthropic/claude-opus-4-6";
   const modelString = task.model || config?.agent?.defaultModel || DEFAULT_MODEL;
@@ -453,14 +478,18 @@ async function spawnTeamMembers(
     const memberController = await monitorOpenCodeEvents(
       memberPort,
       taskId,
-      buildTeamEventHandler(taskId, memberId, memberDef.label, infra, task, config)
+      buildTeamEventHandler(taskId, memberId, memberDef.label, infra, task, config),
     );
 
     eventControllers.set(`${taskId}:${memberId}`, memberController);
     labels.push(memberDef.label);
   }
 
-  createAlert(taskId, "agent_complete", `Team assembled: ${labels.length} members (${labels.join(", ")})`);
+  createAlert(
+    taskId,
+    "agent_complete",
+    `Team assembled: ${labels.length} members (${labels.join(", ")})`,
+  );
   log(taskId, `all ${labels.length} team members spawned`);
 }
 
@@ -470,7 +499,7 @@ function buildTeamEventHandler(
   memberLabel: string,
   infra: InfrastructureResult,
   task: Task,
-  config: AgentCoConfig | null
+  config: AgentCoConfig | null,
 ) {
   let planParsed = false;
 
@@ -482,14 +511,21 @@ function buildTeamEventHandler(
       const key = `${taskId}:${memberId}`;
       const currentMode = taskAgentMode.get(key);
       if (currentMode !== event.agentMode) {
-        logd(taskId, `${memberPrefix} agent mode: ${currentMode ?? "unknown"} → ${event.agentMode}`);
+        logd(
+          taskId,
+          `${memberPrefix} agent mode: ${currentMode ?? "unknown"} → ${event.agentMode}`,
+        );
         taskAgentMode.set(key, event.agentMode as "plan" | "build");
       }
     }
 
     // Leader/member idle handling
     if (event.status === "agent_done") {
-      const member = db.select().from(schema.teamMembers).where(eq(schema.teamMembers.id, memberId)).get();
+      const member = db
+        .select()
+        .from(schema.teamMembers)
+        .where(eq(schema.teamMembers.id, memberId))
+        .get();
       if (!member) return;
 
       if (member.role === "leader" && !planParsed) {
@@ -507,7 +543,10 @@ function buildTeamEventHandler(
         // the leader is still working.
         const planPath = path.join(infra.worktreePath, TEAM_PLAN_PATH);
         if (!fs.existsSync(planPath)) {
-          log(taskId, `${memberPrefix} leader idle in build mode, team plan file not written yet — waiting`);
+          log(
+            taskId,
+            `${memberPrefix} leader idle in build mode, team plan file not written yet — waiting`,
+          );
           updateTaskStatus(taskId, "agent_running");
           return;
         }
@@ -552,9 +591,11 @@ function buildTeamEventHandler(
           const leader = allMembers.find((m) => m.role === "leader");
           if (leader?.opencodePort && leader?.opencodeSessionId) {
             const completionMsg = `All team members have completed their work. Review the changes across the worktree, verify integration between the different components, and report any issues found.`;
-            opencode.sendPrompt(leader.opencodePort, leader.opencodeSessionId, completionMsg).catch((err) => {
-              log(taskId, `failed to notify leader of completion: ${err}`);
-            });
+            opencode
+              .sendPrompt(leader.opencodePort, leader.opencodeSessionId, completionMsg)
+              .catch((err) => {
+                log(taskId, `failed to notify leader of completion: ${err}`);
+              });
           }
           return;
         }
@@ -670,13 +711,10 @@ export async function createPR(taskId: string): Promise<string> {
     task.worktreePath,
     task.branchName,
     task.title,
-    task.description
+    task.description,
   );
 
-  db.update(schema.tasks)
-    .set({ prUrl })
-    .where(eq(schema.tasks.id, taskId))
-    .run();
+  db.update(schema.tasks).set({ prUrl }).where(eq(schema.tasks.id, taskId)).run();
 
   updateTaskStatus(taskId, "pr_created");
   createAlert(taskId, "pr_created", `PR created: ${prUrl}`, { prUrl });
@@ -943,15 +981,14 @@ async function reconnectSoloTask(task: Task): Promise<void> {
   logger.info("[reconnect]", `task ${task.id.slice(0, 8)} health: ${alive}`);
 
   if (alive) {
-    const mode = task.status === "agent_done" || task.status === "preview_live"
-      ? "build" : "plan";
+    const mode = task.status === "agent_done" || task.status === "preview_live" ? "build" : "plan";
     taskAgentMode.set(task.id, mode);
 
     setTaskPort(task.id, task.opencodePort);
     const controller = await monitorOpenCodeEvents(
       task.opencodePort,
       task.id,
-      buildEventHandler(task.id)
+      buildEventHandler(task.id),
     );
 
     eventControllers.set(task.id, controller);
@@ -984,7 +1021,10 @@ async function reconnectTeamTask(task: Task): Promise<void> {
       continue;
     }
 
-    logger.info("[reconnect]", `team member "${member.label}" checking port ${member.opencodePort}...`);
+    logger.info(
+      "[reconnect]",
+      `team member "${member.label}" checking port ${member.opencodePort}...`,
+    );
     const alive = await opencode.checkHealth(member.opencodePort);
     logger.info("[reconnect]", `team member "${member.label}" health: ${alive}`);
 
@@ -995,7 +1035,7 @@ async function reconnectTeamTask(task: Task): Promise<void> {
       const controller = await monitorOpenCodeEvents(
         member.opencodePort,
         task.id,
-        buildTeamEventHandler(task.id, member.id, member.label, infra, task, config)
+        buildTeamEventHandler(task.id, member.id, member.label, infra, task, config),
       );
 
       eventControllers.set(`${task.id}:${member.id}`, controller);

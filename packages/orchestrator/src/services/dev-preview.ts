@@ -10,7 +10,7 @@ export async function startDevPreview(
   options?: {
     healthCheck?: string;
     readyPattern?: string;
-  }
+  },
 ): Promise<void> {
   const [cmd, ...args] = command.split(" ");
   const proc = execa(cmd, args, {
@@ -26,10 +26,7 @@ export async function startDevPreview(
   if (options?.readyPattern) {
     await waitForStdoutPattern(proc, options.readyPattern, 60_000);
   } else if (options?.healthCheck) {
-    await waitForHealthCheck(
-      `http://127.0.0.1:${port}${options.healthCheck}`,
-      60_000
-    );
+    await waitForHealthCheck(`http://127.0.0.1:${port}${options.healthCheck}`, 60_000);
   } else {
     // Default: wait a few seconds for the server to start
     await new Promise((resolve) => setTimeout(resolve, 3000));
@@ -48,7 +45,7 @@ export async function stopDevPreview(worktreePath: string): Promise<void> {
 async function waitForStdoutPattern(
   proc: ReturnType<typeof execa>,
   pattern: string,
-  timeoutMs: number
+  timeoutMs: number,
 ): Promise<void> {
   return new Promise((resolve, reject) => {
     const timeout = setTimeout(() => {
@@ -74,10 +71,7 @@ async function waitForStdoutPattern(
   });
 }
 
-async function waitForHealthCheck(
-  url: string,
-  timeoutMs: number
-): Promise<void> {
+async function waitForHealthCheck(url: string, timeoutMs: number): Promise<void> {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
     try {

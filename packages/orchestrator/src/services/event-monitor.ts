@@ -37,7 +37,7 @@ export interface StatusChangeEvent {
 export async function monitorOpenCodeEvents(
   port: number,
   taskId: string,
-  onStatusChange: (event: StatusChangeEvent) => void
+  onStatusChange: (event: StatusChangeEvent) => void,
 ): Promise<AbortController> {
   const controller = new AbortController();
   const url = `http://127.0.0.1:${port}/event`;
@@ -55,7 +55,7 @@ async function startEventLoop(
   url: string,
   taskId: string,
   signal: AbortSignal,
-  onStatusChange: (event: StatusChangeEvent) => void
+  onStatusChange: (event: StatusChangeEvent) => void,
 ): Promise<void> {
   let retries = 0;
   const maxRetries = 10;
@@ -90,9 +90,7 @@ async function startEventLoop(
         buffer = lines.pop() ?? "";
 
         for (const block of lines) {
-          const dataLine = block
-            .split("\n")
-            .find((l) => l.startsWith("data:"));
+          const dataLine = block.split("\n").find((l) => l.startsWith("data:"));
           if (!dataLine) continue;
 
           try {
@@ -108,7 +106,10 @@ async function startEventLoop(
       retries++;
       const backoff = Math.min(1000 * Math.pow(2, Math.min(retries, 5)), 30000);
       const msg = err instanceof Error ? err.message : String(err);
-      logger.warn(ssePrefix(taskId), `connection lost (${msg}), retry ${retries}/${maxRetries} in ${backoff}ms`);
+      logger.warn(
+        ssePrefix(taskId),
+        `connection lost (${msg}), retry ${retries}/${maxRetries} in ${backoff}ms`,
+      );
       await new Promise((resolve) => setTimeout(resolve, backoff));
     }
   }
@@ -147,7 +148,7 @@ const SSE_INFO_EVENTS = new Set([
 function handleSSEEvent(
   data: Record<string, unknown>,
   taskId: string,
-  onStatusChange: (event: StatusChangeEvent) => void
+  onStatusChange: (event: StatusChangeEvent) => void,
 ): void {
   const eventType = data.type as string;
   const prefix = ssePrefix(taskId);
@@ -240,7 +241,7 @@ function handleSSEEvent(
 async function fetchQuestions(
   port: number,
   taskId: string,
-  onStatusChange: (event: StatusChangeEvent) => void
+  onStatusChange: (event: StatusChangeEvent) => void,
 ): Promise<void> {
   const prefix = ssePrefix(taskId);
   try {

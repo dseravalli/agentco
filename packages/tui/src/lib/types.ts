@@ -9,4 +9,4 @@ export type {
   TeamMember,
   Alert,
   WSEvent,
-} from "@agentco/shared"
+} from "@agentco/shared";

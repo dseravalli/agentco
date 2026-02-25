@@ -1,4 +1,4 @@
-import type { TaskStatus } from "./types.js"
+import type { TaskStatus } from "./types.js";
 
 export const STATUS_COLORS: Record<TaskStatus, string> = {
   pending: "#888",
@@ -13,7 +13,7 @@ export const STATUS_COLORS: Record<TaskStatus, string> = {
   archived: "#555",
   failed: "#e06c75",
   aborted: "#d19a66",
-}
+};
 
 export const STATUS_LABELS: Record<TaskStatus, string> = {
   pending: "Pending",
@@ -28,14 +28,14 @@ export const STATUS_LABELS: Record<TaskStatus, string> = {
   archived: "Archived",
   failed: "Failed",
   aborted: "Aborted",
-}
+};
 
 export function statusColor(status: string): string {
-  return STATUS_COLORS[status as TaskStatus] || "#888"
+  return STATUS_COLORS[status as TaskStatus] || "#888";
 }
 
 export function statusLabel(status: string): string {
-  return STATUS_LABELS[status as TaskStatus] || status
+  return STATUS_LABELS[status as TaskStatus] || status;
 }
 
 export const colors = {
@@ -52,4 +52,4 @@ export const colors = {
   highlightText: "#fff",
   key: "#ccc",
   keyLabel: "#555",
-} as const
+} as const;

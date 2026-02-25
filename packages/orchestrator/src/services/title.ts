@@ -1,7 +1,7 @@
 import * as logger from "../lib/log.js";
 
 const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
-const MODEL = "claude-3-5-haiku-latest";
+const MODEL = "claude-haiku-4-5";
 
 export async function generateTitle(description: string): Promise<string> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -16,7 +16,6 @@ export async function generateTitle(description: string): Promise<string> {
       headers: {
         "Content-Type": "application/json",
         "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
         model: MODEL,
@@ -52,7 +51,5 @@ export async function generateTitle(description: string): Promise<string> {
 }
 
 function fallbackTitle(description: string): string {
-  return description.length > 60
-    ? description.slice(0, 57) + "..."
-    : description;
+  return description.length > 60 ? description.slice(0, 57) + "..." : description;
 }

@@ -36,11 +36,7 @@ const ENV_FILE_PATTERNS = [
   /\.env\.sample$/,
 ];
 
-const ENV_REF_PATTERNS = [
-  /process\.env\.\w+/,
-  /Bun\.env\.\w+/,
-  /import\.meta\.env\.\w+/,
-];
+const ENV_REF_PATTERNS = [/process\.env\.\w+/, /Bun\.env\.\w+/, /import\.meta\.env\.\w+/];
 
 const SCHEMA_PATTERNS = [
   /\/schema\.\w+$/,
@@ -104,7 +100,7 @@ function extractAddedEnvKeys(diff: FileDiff): string[] {
     diff.before
       .split("\n")
       .filter((l) => l.includes("="))
-      .map((l) => l.split("=")[0].trim())
+      .map((l) => l.split("=")[0].trim()),
   );
 
   for (const line of lines) {
@@ -231,7 +227,7 @@ export async function detectActionItemsWithLLM(diffs: FileDiff[]): Promise<Actio
 
     const response = await Promise.race([
       client.messages.create({
-        model: "claude-haiku-4-20250414",
+        model: "claude-haiku-4-5",
         max_tokens: 1024,
         system: SYSTEM_PROMPT,
         messages: [
@@ -242,7 +238,7 @@ export async function detectActionItemsWithLLM(diffs: FileDiff[]): Promise<Actio
         ],
       }),
       new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("LLM timeout")), LLM_TIMEOUT_MS)
+        setTimeout(() => reject(new Error("LLM timeout")), LLM_TIMEOUT_MS),
       ),
     ]);
 
@@ -266,7 +262,7 @@ export async function detectActionItemsWithLLM(diffs: FileDiff[]): Promise<Actio
         "files" in item &&
         typeof (item as ActionItem).category === "string" &&
         typeof (item as ActionItem).summary === "string" &&
-        Array.isArray((item as ActionItem).files)
+        Array.isArray((item as ActionItem).files),
     );
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -283,7 +279,10 @@ export async function analyzeCompletion(diffs: FileDiff[]): Promise<ActionItem[]
   const heuristicItems = detectActionItems(diffs);
 
   if (heuristicItems.length > 0) {
-    logger.debug("[action-items]", `heuristics found ${heuristicItems.length} item(s), skipping LLM`);
+    logger.debug(
+      "[action-items]",
+      `heuristics found ${heuristicItems.length} item(s), skipping LLM`,
+    );
     return heuristicItems;
   }
 

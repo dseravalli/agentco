@@ -6,10 +6,8 @@ const CONFIG_PATH = path.join(os.homedir(), ".agentco", "config.json");
 
 const DEFAULT_MODELS = [
   "anthropic/claude-opus-4-6",
-  "anthropic/claude-sonnet-4",
-  "google/gemini-2.5-pro",
-  "openai/o3",
-  "openai/gpt-4.1",
+  "anthropic/claude-sonnet-4-6",
+  "openai/gpt-5.3-codex",
 ];
 
 interface GlobalConfig {
@@ -27,10 +25,7 @@ export function getGlobalConfig(): GlobalConfig {
     // File doesn't exist or is invalid — create with defaults
     try {
       fs.mkdirSync(path.dirname(CONFIG_PATH), { recursive: true });
-      fs.writeFileSync(
-        CONFIG_PATH,
-        JSON.stringify({ models: DEFAULT_MODELS }, null, 2) + "\n",
-      );
+      fs.writeFileSync(CONFIG_PATH, JSON.stringify({ models: DEFAULT_MODELS }, null, 2) + "\n");
     } catch {
       // Can't write — just use defaults
     }

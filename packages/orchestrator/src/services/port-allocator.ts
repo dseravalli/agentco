@@ -60,15 +60,10 @@ export async function allocatePort(type: PortType): Promise<number> {
     }
   }
 
-  throw new Error(
-    `No available ports in range ${range.min}-${range.max} for ${type}`
-  );
+  throw new Error(`No available ports in range ${range.min}-${range.max} for ${type}`);
 }
 
-export async function releasePort(
-  taskId: string,
-  type: PortType
-): Promise<void> {
+export async function releasePort(taskId: string, type: PortType): Promise<void> {
   const col = getPortColumn(type);
   db.update(schema.tasks)
     .set({ [col]: null })

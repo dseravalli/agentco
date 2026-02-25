@@ -6,7 +6,7 @@ export async function createPullRequest(
   worktreePath: string,
   branchName: string,
   title: string,
-  body: string
+  body: string,
 ): Promise<string> {
   await git.addAll(worktreePath);
 
@@ -21,7 +21,7 @@ export async function createPullRequest(
   const result = await execa(
     "gh",
     ["pr", "create", "--title", title, "--body", body, "--head", branchName],
-    { cwd: worktreePath, reject: false }
+    { cwd: worktreePath, reject: false },
   );
 
   if (result.exitCode !== 0) {

@@ -1,308 +1,317 @@
-import { useKeyboard } from "@opentui/solid"
-import { createSignal, createMemo, onMount, Show, For } from "solid-js"
-import { useSync } from "../providers/sync.js"
-import { useSDK } from "../providers/sdk.js"
-import { useRoute } from "../providers/route.js"
-import { Header } from "../components/Header.js"
-import { KeyHints, type KeyHint } from "../components/KeyHints.js"
-import { StatusBadge } from "../components/StatusBadge.js"
-import { colors } from "../lib/theme.js"
-import { timeAgo } from "../lib/time.js"
-import { execFileSync } from "node:child_process"
-import { isTmux, openTmuxWindow, openTeamTmuxLayout } from "../lib/tmux.js"
-import type { Alert, Task, TaskStatus, TeamMember } from "../lib/types.js"
+import { useKeyboard } from "@opentui/solid";
+import { createSignal, createMemo, onMount, Show, For } from "solid-js";
+import { useSync } from "../providers/sync.js";
+import { useSDK } from "../providers/sdk.js";
+import { useRoute } from "../providers/route.js";
+import { Header } from "../components/Header.js";
+import { KeyHints, type KeyHint } from "../components/KeyHints.js";
+import { StatusBadge } from "../components/StatusBadge.js";
+import { colors } from "../lib/theme.js";
+import { timeAgo } from "../lib/time.js";
+import { execFileSync } from "node:child_process";
+import { isTmux, openTmuxWindow, openTeamTmuxLayout } from "../lib/tmux.js";
+import type { Alert, Task, TaskStatus, TeamMember } from "../lib/types.js";
 
-const AGENTCO_URL = process.env.AGENTCO_URL || "http://localhost:8080"
+const AGENTCO_URL = process.env.AGENTCO_URL || "http://localhost:8080";
 
-type Mode =
-  | { type: "normal" }
-  | { type: "confirm"; action: string; onConfirm: () => void }
+type Mode = { type: "normal" } | { type: "confirm"; action: string; onConfirm: () => void };
 
-const ATTACHABLE: TaskStatus[] = ["agent_running", "needs_input", "plan_ready", "agent_done", "preview_live"]
+const ATTACHABLE: TaskStatus[] = [
+  "agent_running",
+  "needs_input",
+  "plan_ready",
+  "agent_done",
+  "preview_live",
+];
 
 function canAttach(task: Task): boolean {
-  if (!ATTACHABLE.includes(task.status)) return false
+  if (!ATTACHABLE.includes(task.status)) return false;
   // Team tasks store ports on team_members, not on the task itself
-  if (task.mode === "team") return true
-  return task.opencodePort !== null && task.opencodeSessionId !== null
+  if (task.mode === "team") return true;
+  return task.opencodePort !== null && task.opencodeSessionId !== null;
 }
 
 function MetadataRow(props: { label: string; value: string; valueFg?: string }) {
   return (
     <box flexDirection="row" gap={1}>
-      <text fg={colors.textMuted} width={12}>{props.label}</text>
+      <text fg={colors.textMuted} width={12}>
+        {props.label}
+      </text>
       <text fg={props.valueFg || colors.text}>{props.value}</text>
     </box>
-  )
+  );
 }
 
-function AlertRow(props: {
-  alert: Alert
-  isActive: boolean
-}) {
+function AlertRow(props: { alert: Alert; isActive: boolean }) {
   const icon = () => {
     switch (props.alert.type) {
       case "needs_permission":
       case "needs_input":
-        return "!"
+        return "!";
       case "needs_question":
-        return "?"
+        return "?";
       case "action_required":
-        return ">"
+        return ">";
       case "error":
-        return "x"
+        return "x";
       default:
-        return "i"
+        return "i";
     }
-  }
+  };
 
   const fg = () => {
     switch (props.alert.type) {
       case "needs_permission":
       case "needs_input":
-        return colors.warning
+        return colors.warning;
       case "needs_question":
-        return colors.accent
+        return colors.accent;
       case "action_required":
-        return "#d19a66"
+        return "#d19a66";
       case "error":
-        return colors.error
+        return colors.error;
       default:
-        return colors.textDim
+        return colors.textDim;
     }
-  }
+  };
 
   return (
-    <box flexDirection="row" width="100%" gap={1} backgroundColor={props.isActive ? colors.highlight : undefined}>
+    <box
+      flexDirection="row"
+      width="100%"
+      gap={1}
+      backgroundColor={props.isActive ? colors.highlight : undefined}
+    >
       <text fg={fg()}>{icon()}</text>
       <text fg={props.isActive ? colors.highlightText : colors.text} flexGrow={1}>
         {props.alert.message}
       </text>
       <text fg={colors.textMuted}>{timeAgo(props.alert.createdAt)}</text>
     </box>
-  )
+  );
 }
 
 export function TaskDetail(props: { taskId: string }) {
-  const { state, status, refresh } = useSync()
-  const { api } = useSDK()
-  const { back } = useRoute()
-  const [mode, setMode] = createSignal<Mode>({ type: "normal" })
-  const [alertCursor, setAlertCursor] = createSignal(0)
-  const [message, setMessage] = createSignal("")
-  const [actionInProgress, setActionInProgress] = createSignal<string | null>(null)
-  const [teamMembers, setTeamMembers] = createSignal<TeamMember[]>([])
+  const { state, status, refresh } = useSync();
+  const { api } = useSDK();
+  const { back } = useRoute();
+  const [mode, setMode] = createSignal<Mode>({ type: "normal" });
+  const [alertCursor, setAlertCursor] = createSignal(0);
+  const [message, setMessage] = createSignal("");
+  const [actionInProgress, setActionInProgress] = createSignal<string | null>(null);
+  const [teamMembers, setTeamMembers] = createSignal<TeamMember[]>([]);
 
-  const task = createMemo(() => state.tasks.find((t) => t.id === props.taskId))
+  const task = createMemo(() => state.tasks.find((t) => t.id === props.taskId));
   const project = createMemo(() => {
-    const t = task()
-    if (!t) return undefined
-    return state.projects.find((p) => p.id === t.projectId)
-  })
+    const t = task();
+    if (!t) return undefined;
+    return state.projects.find((p) => p.id === t.projectId);
+  });
 
   onMount(async () => {
-    const t = task()
+    const t = task();
     if (t?.mode === "team") {
       try {
-        const members = await api.listTeamMembers(t.id)
-        setTeamMembers(members)
+        const members = await api.listTeamMembers(t.id);
+        setTeamMembers(members);
       } catch {}
     }
-  })
+  });
 
   const taskAlerts = createMemo(() =>
     state.alerts
       .filter((a) => a.taskId === props.taskId)
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-  )
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
+  );
 
-  const unreadAlerts = createMemo(() => taskAlerts().filter((a) => !a.read))
+  const unreadAlerts = createMemo(() => taskAlerts().filter((a) => !a.read));
 
-  const actionItems = createMemo(() =>
-    taskAlerts().filter((a) => a.type === "action_required")
-  )
+  const actionItems = createMemo(() => taskAlerts().filter((a) => a.type === "action_required"));
 
   function showMessage(msg: string) {
-    setMessage(msg)
-    setTimeout(() => setMessage(""), 3000)
+    setMessage(msg);
+    setTimeout(() => setMessage(""), 3000);
   }
 
   async function doAction(label: string, fn: () => Promise<void>) {
-    setActionInProgress(label)
+    setActionInProgress(label);
     try {
-      await fn()
-      showMessage(`${label}: ok`)
-      await refresh()
+      await fn();
+      showMessage(`${label}: ok`);
+      await refresh();
     } catch (err) {
-      showMessage(`${label}: ${(err as Error).message}`)
+      showMessage(`${label}: ${(err as Error).message}`);
     } finally {
-      setActionInProgress(null)
+      setActionInProgress(null);
     }
   }
 
   function confirmAction(action: string, onConfirm: () => void) {
-    setMode({ type: "confirm", action, onConfirm })
+    setMode({ type: "confirm", action, onConfirm });
   }
 
   async function handleAttach() {
-    const t = task()
-    if (!t || !canAttach(t)) return
+    const t = task();
+    if (!t || !canAttach(t)) return;
 
     if (!isTmux()) {
-      showMessage("Not in a tmux session")
-      return
+      showMessage("Not in a tmux session");
+      return;
     }
 
     if (t.mode === "team") {
       try {
-        const members = await api.listTeamMembers(t.id)
-        const active = members.filter(
-          (m) => m.opencodePort && m.opencodeSessionId
-        )
+        const members = await api.listTeamMembers(t.id);
+        const active = members.filter((m) => m.opencodePort && m.opencodeSessionId);
         if (active.length === 0) {
-          showMessage("No team members with active sessions")
-          return
+          showMessage("No team members with active sessions");
+          return;
         }
         const sorted = [
           ...active.filter((m) => m.role === "leader"),
           ...active.filter((m) => m.role === "member"),
-        ]
+        ];
         openTeamTmuxLayout(
           `team-${t.slug}`,
           sorted.map((m) => ({
             serverUrl: `http://127.0.0.1:${m.opencodePort}`,
             sessionId: m.opencodeSessionId!,
             label: m.label,
-          }))
-        )
-        showMessage("Opened team tmux layout")
+          })),
+        );
+        showMessage("Opened team tmux layout");
       } catch (err) {
-        showMessage(`Attach failed: ${(err as Error).message}`)
+        showMessage(`Attach failed: ${(err as Error).message}`);
       }
     } else {
-      openTmuxWindow(
-        `oc-${t.slug}`,
-        `http://127.0.0.1:${t.opencodePort}`,
-        t.opencodeSessionId!
-      )
-      showMessage("Opened tmux window")
+      openTmuxWindow(`oc-${t.slug}`, `http://127.0.0.1:${t.opencodePort}`, t.opencodeSessionId!);
+      showMessage("Opened tmux window");
     }
   }
 
   useKeyboard((key) => {
-    if (actionInProgress()) return
+    if (actionInProgress()) return;
 
-    const m = mode()
+    const m = mode();
 
     // Confirm dialog mode
     if (m.type === "confirm") {
       if (key.name === "y" || key.name === "return") {
-        m.onConfirm()
-        setMode({ type: "normal" })
+        m.onConfirm();
+        setMode({ type: "normal" });
       } else {
-        setMode({ type: "normal" })
-        showMessage("Cancelled")
+        setMode({ type: "normal" });
+        showMessage("Cancelled");
       }
-      return
+      return;
     }
 
     // Normal mode
     if (key.name === "escape" || key.name === "backspace") {
-      back()
-      return
+      back();
+      return;
     }
     if (key.ctrl && key.name === "c") {
-      process.exit(0)
+      process.exit(0);
     }
 
-    const t = task()
-    if (!t) return
+    const t = task();
+    if (!t) return;
 
     // Alert navigation
     if (key.name === "j" || key.name === "down") {
-      setAlertCursor((c) => Math.min(c + 1, taskAlerts().length - 1))
+      setAlertCursor((c) => Math.min(c + 1, taskAlerts().length - 1));
     }
     if (key.name === "k" || key.name === "up") {
-      setAlertCursor((c) => Math.max(c - 1, 0))
+      setAlertCursor((c) => Math.max(c - 1, 0));
     }
 
     // Task lifecycle actions
     if (key.name === "a" && canAttach(t)) {
-      handleAttach()
-      return
+      handleAttach();
+      return;
     }
     if (key.name === "s" && t.status === "pending") {
-      doAction("start", () => api.startTask(t.id))
-      return
+      doAction("start", () => api.startTask(t.id));
+      return;
     }
-    if (key.name === "x" && t.status !== "archived" && t.status !== "aborted" && t.status !== "failed") {
-      confirmAction("Abort task?", () => doAction("abort", () => api.abortTask(t.id)))
-      return
+    if (
+      key.name === "x" &&
+      t.status !== "archived" &&
+      t.status !== "aborted" &&
+      t.status !== "failed"
+    ) {
+      confirmAction("Abort task?", () => doAction("abort", () => api.abortTask(t.id)));
+      return;
     }
     if (key.name === "r" && (t.status === "failed" || t.status === "aborted")) {
-      doAction("retry", () => api.retryTask(t.id))
-      return
+      doAction("retry", () => api.retryTask(t.id));
+      return;
     }
     if (key.name === "p" && t.status === "agent_done") {
-      doAction("create PR", () => api.createPR(t.id).then(() => {}))
-      return
+      doAction("create PR", () => api.createPR(t.id).then(() => {}));
+      return;
     }
     if (key.name === "o" && t.prUrl) {
-      const cmd = process.platform === "darwin" ? "open" : "xdg-open"
+      const cmd = process.platform === "darwin" ? "open" : "xdg-open";
       try {
-        execFileSync(cmd, [t.prUrl])
-        showMessage("Opened PR in browser")
+        execFileSync(cmd, [t.prUrl]);
+        showMessage("Opened PR in browser");
       } catch {
-        showMessage("Failed to open browser")
+        showMessage("Failed to open browser");
       }
-      return
+      return;
     }
     if (key.name === "d") {
       if (t.status === "archived" || t.status === "pending") {
         confirmAction("Delete task?", () => {
-          doAction("delete", () => api.deleteTask(t.id)).then(() => back())
-        })
+          doAction("delete", () => api.deleteTask(t.id)).then(() => back());
+        });
       } else {
         confirmAction("Cleanup task?", () => {
-          doAction("cleanup", () => api.cleanupTask(t.id))
-        })
+          doAction("cleanup", () => api.cleanupTask(t.id));
+        });
       }
-      return
+      return;
     }
-  })
+  });
 
   const keyHints = createMemo((): KeyHint[] => {
-    const action = actionInProgress()
+    const action = actionInProgress();
     if (action) {
-      return [{ key: "...", label: action }]
+      return [{ key: "...", label: action }];
     }
 
-    const m = mode()
+    const m = mode();
     if (m.type === "confirm") {
       return [
         { key: "y/enter", label: "confirm" },
         { key: "any", label: "cancel" },
-      ]
+      ];
     }
-    const t = task()
-    const hints: KeyHint[] = [{ key: "esc", label: "back" }]
+    const t = task();
+    const hints: KeyHint[] = [{ key: "esc", label: "back" }];
 
     if (t) {
-      if (canAttach(t)) hints.push({ key: "a", label: t.mode === "team" ? "attach team" : "attach" })
-      if (t.status === "pending") hints.push({ key: "s", label: "start" })
+      if (canAttach(t))
+        hints.push({ key: "a", label: t.mode === "team" ? "attach team" : "attach" });
+      if (t.status === "pending") hints.push({ key: "s", label: "start" });
       if (t.status !== "archived" && t.status !== "aborted" && t.status !== "failed")
-        hints.push({ key: "x", label: "abort" })
-      if (t.status === "failed" || t.status === "aborted") hints.push({ key: "r", label: "retry" })
-      if (t.status === "agent_done") hints.push({ key: "p", label: "pr" })
-      if (t.prUrl) hints.push({ key: "o", label: "open pr" })
-      hints.push({ key: "d", label: t.status === "archived" || t.status === "pending" ? "delete" : "cleanup" })
+        hints.push({ key: "x", label: "abort" });
+      if (t.status === "failed" || t.status === "aborted") hints.push({ key: "r", label: "retry" });
+      if (t.status === "agent_done") hints.push({ key: "p", label: "pr" });
+      if (t.prUrl) hints.push({ key: "o", label: "open pr" });
+      hints.push({
+        key: "d",
+        label: t.status === "archived" || t.status === "pending" ? "delete" : "cleanup",
+      });
     }
 
     if (taskAlerts().length > 0) {
-      hints.push({ key: "j/k", label: "alerts" })
+      hints.push({ key: "j/k", label: "alerts" });
     }
-    return hints
-  })
+    return hints;
+  });
 
   return (
     <box width="100%" height="100%" flexDirection="column">
@@ -321,7 +330,9 @@ export function TaskDetail(props: { taskId: string }) {
             <box flexDirection="column" width="100%" gap={1}>
               {/* Title + status */}
               <box flexDirection="row" gap={1}>
-                <text fg={colors.highlightText}><b>{t().title}</b></text>
+                <text fg={colors.highlightText}>
+                  <b>{t().title}</b>
+                </text>
                 <StatusBadge status={t().status} />
               </box>
 
@@ -351,30 +362,37 @@ export function TaskDetail(props: { taskId: string }) {
               {/* Team Members */}
               <Show when={t().mode === "team" && teamMembers().length > 0}>
                 <box flexDirection="column" width="100%">
-                  <text fg={colors.textDim}>
-                    Team Members ({teamMembers().length})
-                  </text>
+                  <text fg={colors.textDim}>Team Members ({teamMembers().length})</text>
                   <For each={teamMembers()}>
                     {(member) => {
                       const statusColor = () => {
                         switch (member.status) {
-                          case "running": return colors.success
-                          case "idle": return colors.accent
-                          case "failed": return colors.error
-                          case "starting": return colors.warning
-                          default: return colors.textMuted
+                          case "running":
+                            return colors.success;
+                          case "idle":
+                            return colors.accent;
+                          case "failed":
+                            return colors.error;
+                          case "starting":
+                            return colors.warning;
+                          default:
+                            return colors.textMuted;
                         }
-                      }
+                      };
                       return (
                         <box flexDirection="row" width="100%" gap={1} paddingLeft={2}>
                           <text fg={statusColor()}>*</text>
-                          <text fg={colors.text} width={12}>{member.label}</text>
-                          <text fg={statusColor()} width={10}>{member.status}</text>
+                          <text fg={colors.text} width={12}>
+                            {member.label}
+                          </text>
+                          <text fg={statusColor()} width={10}>
+                            {member.status}
+                          </text>
                           <Show when={member.opencodePort}>
                             <text fg={colors.textMuted}>port {member.opencodePort}</text>
                           </Show>
                         </box>
-                      )
+                      );
                     }}
                   </For>
                 </box>
@@ -383,7 +401,9 @@ export function TaskDetail(props: { taskId: string }) {
               {/* Error */}
               <Show when={t().error}>
                 <box flexDirection="column">
-                  <text fg={colors.error}><b>Error</b></text>
+                  <text fg={colors.error}>
+                    <b>Error</b>
+                  </text>
                   <text fg={colors.error}>{t().error}</text>
                 </box>
               </Show>
@@ -391,7 +411,9 @@ export function TaskDetail(props: { taskId: string }) {
               {/* Action Items */}
               <Show when={actionItems().length > 0}>
                 <box flexDirection="column" width="100%">
-                  <text fg="#d19a66"><b>Action Required ({actionItems().length})</b></text>
+                  <text fg="#d19a66">
+                    <b>Action Required ({actionItems().length})</b>
+                  </text>
                   <For each={actionItems()}>
                     {(item) => (
                       <box flexDirection="row" width="100%" gap={1}>
@@ -406,16 +428,9 @@ export function TaskDetail(props: { taskId: string }) {
               {/* Alerts */}
               <Show when={taskAlerts().length > 0}>
                 <box flexDirection="column" width="100%">
-                  <text fg={colors.textDim}>
-                    Alerts ({unreadAlerts().length} unread)
-                  </text>
+                  <text fg={colors.textDim}>Alerts ({unreadAlerts().length} unread)</text>
                   <For each={taskAlerts()}>
-                    {(alert, i) => (
-                      <AlertRow
-                        alert={alert}
-                        isActive={i() === alertCursor()}
-                      />
-                    )}
+                    {(alert, i) => <AlertRow alert={alert} isActive={i() === alertCursor()} />}
                   </For>
                 </box>
               </Show>
@@ -423,7 +438,9 @@ export function TaskDetail(props: { taskId: string }) {
               {/* Confirm dialog */}
               <Show when={mode().type === "confirm"}>
                 <box flexDirection="row" gap={1}>
-                  <text fg={colors.warning}><b>{(mode() as { action: string }).action}</b></text>
+                  <text fg={colors.warning}>
+                    <b>{(mode() as { action: string }).action}</b>
+                  </text>
                   <text fg={colors.textDim}>(y/enter to confirm, any key to cancel)</text>
                 </box>
               </Show>
@@ -441,5 +458,5 @@ export function TaskDetail(props: { taskId: string }) {
       </box>
       <KeyHints hints={keyHints()} />
     </box>
-  )
+  );
 }

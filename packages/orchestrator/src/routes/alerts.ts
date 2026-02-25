@@ -10,11 +10,7 @@ alertRoutes.get("/", (c) => {
   const taskId = c.req.query("taskId");
   const unreadOnly = c.req.query("unread") === "true";
 
-  let alerts = db
-    .select()
-    .from(schema.alerts)
-    .orderBy(desc(schema.alerts.createdAt))
-    .all();
+  let alerts = db.select().from(schema.alerts).orderBy(desc(schema.alerts.createdAt)).all();
 
   if (taskId) {
     alerts = alerts.filter((a) => a.taskId === taskId);
@@ -30,10 +26,7 @@ alertRoutes.post("/:id/read", (c) => {
   const alert = findAlert(eq(schema.alerts.id, c.req.param("id")));
   if (!alert) return c.json({ error: "Alert not found" }, 404);
 
-  db.update(schema.alerts)
-    .set({ read: true })
-    .where(eq(schema.alerts.id, alert.id))
-    .run();
+  db.update(schema.alerts).set({ read: true }).where(eq(schema.alerts.id, alert.id)).run();
 
   return c.json({ ok: true });
 });
@@ -64,12 +57,7 @@ alertRoutes.post("/:id/respond", async (c) => {
     const member = db
       .select()
       .from(schema.teamMembers)
-      .where(
-        and(
-          eq(schema.teamMembers.taskId, task.id),
-          eq(schema.teamMembers.id, teamMemberId)
-        )
-      )
+      .where(and(eq(schema.teamMembers.taskId, task.id), eq(schema.teamMembers.id, teamMemberId)))
       .get();
 
     if (member) {
@@ -105,13 +93,8 @@ alertRoutes.post("/:id/respond", async (c) => {
     }
 
     try {
-      const response = body.action === "approve" ? "once" as const : "reject" as const;
-      await opencode.respondToPermission(
-        port,
-        sessionId,
-        permissionId,
-        response
-      );
+      const response = body.action === "approve" ? ("once" as const) : ("reject" as const);
+      await opencode.respondToPermission(port, sessionId, permissionId, response);
     } catch (err) {
       return c.json({ error: `Failed to respond: ${String(err)}` }, 500);
     }
@@ -119,10 +102,7 @@ alertRoutes.post("/:id/respond", async (c) => {
     return c.json({ error: "Alert does not require a response" }, 400);
   }
 
-  db.update(schema.alerts)
-    .set({ read: true })
-    .where(eq(schema.alerts.id, alert.id))
-    .run();
+  db.update(schema.alerts).set({ read: true }).where(eq(schema.alerts.id, alert.id)).run();
 
   return c.json({ ok: true });
 });

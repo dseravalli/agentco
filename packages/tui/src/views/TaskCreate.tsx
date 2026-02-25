@@ -1,277 +1,282 @@
-import { useKeyboard, useRenderer } from "@opentui/solid"
-import { createSignal, createMemo, onMount, Show } from "solid-js"
-import { spawnSync } from "node:child_process"
-import { writeFileSync, readFileSync, unlinkSync } from "node:fs"
-import { tmpdir } from "node:os"
-import { join } from "node:path"
-import { useSync } from "../providers/sync.js"
-import { useSDK } from "../providers/sdk.js"
-import { useRoute } from "../providers/route.js"
-import { useToast } from "../providers/toast.js"
-import { Header } from "../components/Header.js"
-import { KeyHints, type KeyHint } from "../components/KeyHints.js"
-import { colors } from "../lib/theme.js"
-import type { TaskMode } from "../lib/types.js"
+import { useKeyboard, useRenderer } from "@opentui/solid";
+import { createSignal, createMemo, onMount, Show } from "solid-js";
+import { spawnSync } from "node:child_process";
+import { writeFileSync, readFileSync, unlinkSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { useSync } from "../providers/sync.js";
+import { useSDK } from "../providers/sdk.js";
+import { useRoute } from "../providers/route.js";
+import { useToast } from "../providers/toast.js";
+import { Header } from "../components/Header.js";
+import { KeyHints, type KeyHint } from "../components/KeyHints.js";
+import { colors } from "../lib/theme.js";
+import type { TaskMode } from "../lib/types.js";
 
-const AGENTCO_URL = process.env.AGENTCO_URL || "http://localhost:8080"
+const AGENTCO_URL = process.env.AGENTCO_URL || "http://localhost:8080";
 
-type Field = "project" | "model" | "mode" | "description"
-const FIELDS: Field[] = ["project", "model", "mode", "description"]
+type Field = "project" | "model" | "mode" | "description";
+const FIELDS: Field[] = ["project", "model", "mode", "description"];
 
 const MODES: { value: TaskMode; label: string }[] = [
   { value: "solo", label: "Solo" },
   { value: "team", label: "Team" },
-]
+];
 
 export function TaskCreate() {
-  const { state, status, refresh } = useSync()
-  const { api } = useSDK()
-  const { back, replace } = useRoute()
-  const toast = useToast()
-  const renderer = useRenderer()
+  const { state, status, refresh } = useSync();
+  const { api } = useSDK();
+  const { back, replace } = useRoute();
+  const toast = useToast();
+  const renderer = useRenderer();
 
-  const [activeField, setActiveField] = createSignal<Field>("project")
-  const [projectIndex, setProjectIndex] = createSignal(0)
-  const [modelIndex, setModelIndex] = createSignal(0)
-  const [modeIndex, setModeIndex] = createSignal(0)
-  const [models, setModels] = createSignal<string[]>([])
-  const [description, setDescription] = createSignal("")
-  const [editorUsed, setEditorUsed] = createSignal(false)
-  const [message, setMessage] = createSignal("")
-  const [submitting, setSubmitting] = createSignal(false)
+  const [activeField, setActiveField] = createSignal<Field>("project");
+  const [projectIndex, setProjectIndex] = createSignal(0);
+  const [modelIndex, setModelIndex] = createSignal(0);
+  const [modeIndex, setModeIndex] = createSignal(0);
+  const [models, setModels] = createSignal<string[]>([]);
+  const [description, setDescription] = createSignal("");
+  const [editorUsed, setEditorUsed] = createSignal(false);
+  const [message, setMessage] = createSignal("");
+  const [submitting, setSubmitting] = createSignal(false);
 
-  const projects = createMemo(() => state.projects)
-  const selectedProject = createMemo(() => projects()[projectIndex()])
-  const selectedModel = createMemo(() => models()[modelIndex()])
+  const projects = createMemo(() => state.projects);
+  const selectedProject = createMemo(() => projects()[projectIndex()]);
+  const selectedModel = createMemo(() => models()[modelIndex()]);
   const descriptionPreview = createMemo(() => {
-    const lines = description().split("\n").filter(l => l.trim())
-    if (lines.length <= 1) return description()
-    return `${lines[0]} (+${lines.length - 1} more lines)`
-  })
+    const lines = description()
+      .split("\n")
+      .filter((l) => l.trim());
+    if (lines.length <= 1) return description();
+    return `${lines[0]} (+${lines.length - 1} more lines)`;
+  });
 
   onMount(async () => {
     try {
-      const result = await api.listModels()
+      const result = await api.listModels();
       if (result.length > 0) {
-        setModels(result)
+        setModels(result);
       }
     } catch {
-      setModels(["anthropic/claude-opus-4-6"])
+      setModels(["anthropic/claude-opus-4-6"]);
     }
-  })
+  });
 
   function showMessage(msg: string) {
-    setMessage(msg)
-    setTimeout(() => setMessage(""), 3000)
+    setMessage(msg);
+    setTimeout(() => setMessage(""), 3000);
   }
 
   function openEditor() {
-    const editor = process.env.EDITOR || process.env.VISUAL || "vi"
-    const tmpFile = join(tmpdir(), `agentco-task-${Date.now()}.md`)
+    const editor = process.env.EDITOR || process.env.VISUAL || "vi";
+    const tmpFile = join(tmpdir(), `agentco-task-${Date.now()}.md`);
 
     try {
-      writeFileSync(tmpFile, description())
-      renderer.suspend()
+      writeFileSync(tmpFile, description());
+      renderer.suspend();
 
-      const result = spawnSync(editor, [tmpFile], { stdio: "inherit" })
+      const result = spawnSync(editor, [tmpFile], { stdio: "inherit" });
 
-      renderer.resume()
+      renderer.resume();
 
       if (result.status === 0) {
-        setDescription(readFileSync(tmpFile, "utf-8"))
-        setEditorUsed(true)
+        setDescription(readFileSync(tmpFile, "utf-8"));
+        setEditorUsed(true);
       } else {
-        showMessage("Editor exited with an error")
+        showMessage("Editor exited with an error");
       }
     } catch (err) {
-      renderer.resume()
-      showMessage(`Failed to open editor: ${(err as Error).message}`)
+      renderer.resume();
+      showMessage(`Failed to open editor: ${(err as Error).message}`);
     } finally {
-      try { unlinkSync(tmpFile) } catch {}
+      try {
+        unlinkSync(tmpFile);
+      } catch {}
     }
   }
 
   function nextField() {
-    const idx = FIELDS.indexOf(activeField())
+    const idx = FIELDS.indexOf(activeField());
     if (idx < FIELDS.length - 1) {
-      setActiveField(FIELDS[idx + 1])
+      setActiveField(FIELDS[idx + 1]);
     }
   }
 
   function prevField() {
-    const idx = FIELDS.indexOf(activeField())
+    const idx = FIELDS.indexOf(activeField());
     if (idx > 0) {
-      setActiveField(FIELDS[idx - 1])
+      setActiveField(FIELDS[idx - 1]);
     }
   }
 
   async function submit(andStart: boolean) {
-    const proj = selectedProject()
+    const proj = selectedProject();
     if (!proj) {
-      showMessage("No project selected")
-      return
+      showMessage("No project selected");
+      return;
     }
     if (!description().trim()) {
-      showMessage("Description is required")
-      setActiveField("description")
-      return
+      showMessage("Description is required");
+      setActiveField("description");
+      return;
     }
 
-    setSubmitting(true)
+    setSubmitting(true);
     try {
-      const model = selectedModel()
-      const selectedMode = MODES[modeIndex()].value
-      const task = await api.createTask(proj.id, description().trim(), model, selectedMode)
+      const model = selectedModel();
+      const selectedMode = MODES[modeIndex()].value;
+      const task = await api.createTask(proj.id, description().trim(), model, selectedMode);
       if (andStart) {
-        await api.startTask(task.id)
-        toast.show("Task created and started")
-        await refresh()
-        replace({ name: "task-list" })
+        await api.startTask(task.id);
+        toast.show("Task created and started");
+        await refresh();
+        replace({ name: "task-list" });
       } else {
-        toast.show("Task created")
-        await refresh()
-        replace({ name: "task-detail", taskId: task.id }, [{ name: "task-list" }])
+        toast.show("Task created");
+        await refresh();
+        replace({ name: "task-detail", taskId: task.id }, [{ name: "task-list" }]);
       }
     } catch (err) {
-      showMessage(`Error: ${(err as Error).message}`)
-      setSubmitting(false)
+      showMessage(`Error: ${(err as Error).message}`);
+      setSubmitting(false);
     }
   }
 
   useKeyboard((key) => {
-    if (submitting()) return
+    if (submitting()) return;
 
     // Global
     if (key.name === "escape") {
-      back()
-      return
+      back();
+      return;
     }
     if (key.ctrl && key.name === "c") {
-      process.exit(0)
+      process.exit(0);
     }
 
     // Submit
     if (key.ctrl && key.name === "s") {
-      submit(true)
-      return
+      submit(true);
+      return;
     }
     if (key.ctrl && key.name === "return") {
-      submit(false)
-      return
+      submit(false);
+      return;
     }
 
     // Tab navigation
     if (key.name === "tab") {
       if (key.shift) {
-        prevField()
+        prevField();
       } else {
-        nextField()
+        nextField();
       }
-      return
+      return;
     }
 
-    const field = activeField()
+    const field = activeField();
 
     // Project selector
     if (field === "project") {
       if (key.name === "j" || key.name === "down" || key.name === "right") {
-        setProjectIndex((i) => Math.min(i + 1, projects().length - 1))
-        return
+        setProjectIndex((i) => Math.min(i + 1, projects().length - 1));
+        return;
       }
       if (key.name === "k" || key.name === "up" || key.name === "left") {
-        setProjectIndex((i) => Math.max(i - 1, 0))
-        return
+        setProjectIndex((i) => Math.max(i - 1, 0));
+        return;
       }
       if (key.name === "return") {
-        nextField()
-        return
+        nextField();
+        return;
       }
-      return
+      return;
     }
 
     // Model selector
     if (field === "model") {
       if (key.name === "j" || key.name === "down" || key.name === "right") {
-        setModelIndex((i) => Math.min(i + 1, models().length - 1))
-        return
+        setModelIndex((i) => Math.min(i + 1, models().length - 1));
+        return;
       }
       if (key.name === "k" || key.name === "up" || key.name === "left") {
-        setModelIndex((i) => Math.max(i - 1, 0))
-        return
+        setModelIndex((i) => Math.max(i - 1, 0));
+        return;
       }
       if (key.name === "return") {
-        nextField()
-        return
+        nextField();
+        return;
       }
-      return
+      return;
     }
 
     // Mode selector
     if (field === "mode") {
       if (key.name === "j" || key.name === "down" || key.name === "right") {
-        setModeIndex((i) => Math.min(i + 1, MODES.length - 1))
-        return
+        setModeIndex((i) => Math.min(i + 1, MODES.length - 1));
+        return;
       }
       if (key.name === "k" || key.name === "up" || key.name === "left") {
-        setModeIndex((i) => Math.max(i - 1, 0))
-        return
+        setModeIndex((i) => Math.max(i - 1, 0));
+        return;
       }
       if (key.name === "return") {
-        nextField()
-        return
+        nextField();
+        return;
       }
-      return
+      return;
     }
 
     // Text input field (description)
     if (key.ctrl && key.name === "e") {
-      openEditor()
-      return
+      openEditor();
+      return;
     }
-    if (editorUsed()) return
+    if (editorUsed()) return;
     if (key.name === "backspace") {
-      setDescription((v) => v.slice(0, -1))
-      return
+      setDescription((v) => v.slice(0, -1));
+      return;
     }
     if (key.sequence && key.sequence.length === 1 && !key.ctrl && !key.meta) {
-      setDescription((v) => v + key.sequence)
-      return
+      setDescription((v) => v + key.sequence);
+      return;
     }
-  })
+  });
 
   function FieldLabel(props: { label: string; field: Field }) {
-    const isActive = () => activeField() === props.field
+    const isActive = () => activeField() === props.field;
     return (
       <text fg={isActive() ? colors.accent : colors.textMuted} width={14}>
-        {isActive() ? "> " : "  "}{props.label}
+        {isActive() ? "> " : "  "}
+        {props.label}
       </text>
-    )
+    );
   }
 
   const keyHints = createMemo((): KeyHint[] => {
     if (submitting()) {
-      return [{ key: "...", label: "creating" }]
+      return [{ key: "...", label: "creating" }];
     }
-    const hints: KeyHint[] = [{ key: "esc", label: "cancel" }]
-    hints.push({ key: "tab", label: "next field" })
-    const field = activeField()
+    const hints: KeyHint[] = [{ key: "esc", label: "cancel" }];
+    hints.push({ key: "tab", label: "next field" });
+    const field = activeField();
     if (field === "project" || field === "model" || field === "mode") {
       const fieldLabels: Record<string, string> = {
         project: "select project",
         model: "select model",
         mode: "select mode",
-      }
-      hints.push({ key: "j/k", label: fieldLabels[field] })
+      };
+      hints.push({ key: "j/k", label: fieldLabels[field] });
     }
     if (field === "description") {
-      hints.push({ key: "ctrl+e", label: "editor" })
+      hints.push({ key: "ctrl+e", label: "editor" });
     }
     hints.push(
       { key: "ctrl+s", label: "create & start" },
       { key: "ctrl+enter", label: "create only" },
-    )
-    return hints
-  })
+    );
+    return hints;
+  });
 
   return (
     <box width="100%" height="100%" flexDirection="column">
@@ -357,7 +362,9 @@ export function TaskCreate() {
                 when={description()}
                 fallback={
                   <text fg={colors.textMuted}>
-                    {activeField() === "description" && !editorUsed() ? "_" : "ctrl+e to open editor"}
+                    {activeField() === "description" && !editorUsed()
+                      ? "_"
+                      : "ctrl+e to open editor"}
                   </text>
                 }
               >
@@ -387,5 +394,5 @@ export function TaskCreate() {
       </box>
       <KeyHints hints={keyHints()} />
     </box>
-  )
+  );
 }

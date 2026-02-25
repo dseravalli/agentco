@@ -21,12 +21,7 @@ export type TaskMode = "solo" | "team";
 
 export type TeamMemberRole = "leader" | "member";
 
-export type TeamMemberStatus =
-  | "pending"
-  | "starting"
-  | "running"
-  | "idle"
-  | "failed";
+export type TeamMemberStatus = "pending" | "starting" | "running" | "idle" | "failed";
 
 export type AlertType =
   | "needs_permission"
@@ -116,4 +111,10 @@ export type WSEvent =
   | { type: "task:alert"; taskId: string; alert: Alert }
   | { type: "task:log"; taskId: string; message: string }
   | { type: "agent:event"; taskId: string; event: unknown }
-  | { type: "team:member_status"; taskId: string; memberId: string; label: string; status: TeamMemberStatus };
+  | {
+      type: "team:member_status";
+      taskId: string;
+      memberId: string;
+      label: string;
+      status: TeamMemberStatus;
+    };

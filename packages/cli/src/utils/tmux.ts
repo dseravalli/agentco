@@ -8,11 +8,7 @@ export function assertTmux(): void {
   }
 }
 
-export function openTmuxWindow(
-  windowName: string,
-  serverUrl: string,
-  sessionId: string
-): void {
+export function openTmuxWindow(windowName: string, serverUrl: string, sessionId: string): void {
   // Use exec so the shell is replaced by opencode — when the pane
   // closes, SIGHUP goes directly to the opencode process instead of
   // a wrapper shell that may not forward it.
@@ -28,10 +24,7 @@ export interface TeamPaneMember {
   label: string;
 }
 
-export function openTeamTmuxLayout(
-  windowName: string,
-  members: TeamPaneMember[]
-): void {
+export function openTeamTmuxLayout(windowName: string, members: TeamPaneMember[]): void {
   if (members.length === 0) return;
 
   const leader = members[0];

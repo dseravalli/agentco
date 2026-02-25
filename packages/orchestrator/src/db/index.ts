@@ -35,9 +35,5 @@ export function findAlert(where: SQL): Alert | undefined {
 }
 
 export function findTeamMembers(taskId: string): TeamMember[] {
-  return db
-    .select()
-    .from(schema.teamMembers)
-    .where(eq(schema.teamMembers.taskId, taskId))
-    .all();
+  return db.select().from(schema.teamMembers).where(eq(schema.teamMembers.taskId, taskId)).all();
 }

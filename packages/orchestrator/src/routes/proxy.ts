@@ -39,9 +39,7 @@ async function proxyTo(c: any, port: number, stripPrefix: string) {
     const response = await fetch(targetUrl, {
       method: c.req.method,
       headers,
-      body: c.req.method !== "GET" && c.req.method !== "HEAD"
-        ? c.req.raw.body
-        : undefined,
+      body: c.req.method !== "GET" && c.req.method !== "HEAD" ? c.req.raw.body : undefined,
       redirect: "manual",
     });
 

@@ -1,9 +1,9 @@
-import { For } from "solid-js"
-import { colors } from "../lib/theme.js"
+import { For } from "solid-js";
+import { colors } from "../lib/theme.js";
 
 export interface KeyHint {
-  key: string
-  label: string
+  key: string;
+  label: string;
 }
 
 export function KeyHints(props: { hints: KeyHint[] }) {
@@ -25,5 +25,5 @@ export function KeyHints(props: { hints: KeyHint[] }) {
         )}
       </For>
     </box>
-  )
+  );
 }

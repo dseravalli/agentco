@@ -23,7 +23,7 @@ app.use(
     origin: ["http://localhost:3000"],
     allowMethods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
     allowHeaders: ["Content-Type"],
-  })
+  }),
 );
 
 app.get("/api/health", (c) => {

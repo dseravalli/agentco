@@ -16,7 +16,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     });
   } catch (err) {
     throw new Error(
-      `Cannot connect to orchestrator at ${BASE_URL}. Is it running?\n  ${(err as Error).message}`
+      `Cannot connect to orchestrator at ${BASE_URL}. Is it running?\n  ${(err as Error).message}`,
     );
   }
 
@@ -45,9 +45,7 @@ export async function deleteProject(id: string): Promise<void> {
 export async function findProjectByName(name: string): Promise<Project | undefined> {
   const projects = await listProjects();
   const lower = name.toLowerCase();
-  return projects.find(
-    (p) => p.name.toLowerCase() === lower || p.slug === lower
-  );
+  return projects.find((p) => p.name.toLowerCase() === lower || p.slug === lower);
 }
 
 export async function listTasks(projectId?: string): Promise<Task[]> {
@@ -58,7 +56,7 @@ export async function listTasks(projectId?: string): Promise<Task[]> {
 export async function createTask(
   projectId: string,
   description: string,
-  mode?: TaskMode
+  mode?: TaskMode,
 ): Promise<Task> {
   return request("/api/tasks", {
     method: "POST",

@@ -1,6 +1,13 @@
 import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
-import type { AgentCoConfig, TaskStatus, TaskMode, AlertType, TeamMemberRole, TeamMemberStatus } from "../types.js";
+import type {
+  AgentCoConfig,
+  TaskStatus,
+  TaskMode,
+  AlertType,
+  TeamMemberRole,
+  TeamMemberStatus,
+} from "../types.js";
 
 export const projects = sqliteTable("projects", {
   id: text("id")

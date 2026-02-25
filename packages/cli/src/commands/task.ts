@@ -16,7 +16,7 @@ export function registerTaskCommands(program: Command) {
       async (
         projectName: string,
         description: string | undefined,
-        opts: { file?: string; team?: boolean }
+        opts: { file?: string; team?: boolean },
       ) => {
         try {
           let taskDescription: string;
@@ -25,29 +25,21 @@ export function registerTaskCommands(program: Command) {
           } else if (description) {
             taskDescription = description;
           } else {
-            console.error(
-              "Error: Provide a description argument or use --file <path>"
-            );
+            console.error("Error: Provide a description argument or use --file <path>");
             process.exit(1);
           }
 
           const project = await client.findProjectByName(projectName);
           if (!project) {
             console.error(
-              `Project "${projectName}" not found. Register it first with: agentco project create`
+              `Project "${projectName}" not found. Register it first with: agentco project create`,
             );
             process.exit(1);
           }
 
-          const mode = opts.team ? "team" as const : undefined;
-          const result = await client.createTask(
-            project.id,
-            taskDescription,
-            mode
-          );
-          console.log(
-            `Task created: ${result.title} (${result.id.slice(0, 8)})`
-          );
+          const mode = opts.team ? ("team" as const) : undefined;
+          const result = await client.createTask(project.id, taskDescription, mode);
+          console.log(`Task created: ${result.title} (${result.id.slice(0, 8)})`);
 
           console.log("Starting task...");
           await client.startTask(result.id);
@@ -59,7 +51,7 @@ export function registerTaskCommands(program: Command) {
           console.error(`Failed: ${(err as Error).message}`);
           process.exit(1);
         }
-      }
+      },
     );
 
   task
@@ -87,15 +79,7 @@ export function registerTaskCommands(program: Command) {
         const projects = await client.listProjects();
         const projectMap = new Map(projects.map((p) => [p.id, p.name]));
 
-        const header = padRow(
-          "ID",
-          "Project",
-          "Mode",
-          "Title",
-          "Status",
-          "Branch",
-          "Port"
-        );
+        const header = padRow("ID", "Project", "Mode", "Title", "Status", "Branch", "Port");
         console.log(header);
         console.log("─".repeat(header.length));
 
@@ -108,8 +92,8 @@ export function registerTaskCommands(program: Command) {
               truncate(t.title, 30),
               t.status,
               t.branchName || "—",
-              t.opencodePort ? String(t.opencodePort) : "—"
-            )
+              t.opencodePort ? String(t.opencodePort) : "—",
+            ),
           );
         }
       } catch (err) {
@@ -120,9 +104,7 @@ export function registerTaskCommands(program: Command) {
 
   task
     .command("attach <taskId>")
-    .description(
-      "Attach an opencode TUI to a running task (requires tmux)"
-    )
+    .description("Attach an opencode TUI to a running task (requires tmux)")
     .action(async (taskId: string) => {
       try {
         assertTmux();
@@ -135,24 +117,17 @@ export function registerTaskCommands(program: Command) {
           process.exit(1);
         }
 
-        const attachable = [
-          "agent_running",
-          "needs_input",
-          "agent_done",
-          "preview_live",
-        ];
+        const attachable = ["agent_running", "needs_input", "agent_done", "preview_live"];
         if (!attachable.includes(match.status)) {
           console.error(
-            `Task is "${match.status}". Can only attach when: ${attachable.join(", ")}`
+            `Task is "${match.status}". Can only attach when: ${attachable.join(", ")}`,
           );
           process.exit(1);
         }
 
         if (match.mode === "team") {
           const members = await client.listTeamMembers(match.id);
-          const active = members.filter(
-            (m) => m.opencodePort && m.opencodeSessionId
-          );
+          const active = members.filter((m) => m.opencodePort && m.opencodeSessionId);
           if (active.length === 0) {
             console.error("No team members with active sessions to attach to.");
             process.exit(1);
@@ -164,16 +139,14 @@ export function registerTaskCommands(program: Command) {
             ...active.filter((m) => m.role === "member"),
           ];
 
-          console.log(
-            `Attaching to team "${match.title}" (${sorted.length} agents)...`
-          );
+          console.log(`Attaching to team "${match.title}" (${sorted.length} agents)...`);
           openTeamTmuxLayout(
             `team-${match.slug}`,
             sorted.map((m) => ({
               serverUrl: `http://127.0.0.1:${m.opencodePort}`,
               sessionId: m.opencodeSessionId!,
               label: m.label,
-            }))
+            })),
           );
         } else {
           if (!match.opencodePort || !match.opencodeSessionId) {
@@ -182,14 +155,8 @@ export function registerTaskCommands(program: Command) {
           }
 
           const url = `http://127.0.0.1:${match.opencodePort}`;
-          console.log(
-            `Attaching to "${match.title}" (port ${match.opencodePort})...`
-          );
-          openTmuxWindow(
-            `oc-${match.slug}`,
-            url,
-            match.opencodeSessionId
-          );
+          console.log(`Attaching to "${match.title}" (port ${match.opencodePort})...`);
+          openTmuxWindow(`oc-${match.slug}`, url, match.opencodeSessionId);
         }
       } catch (err) {
         console.error(`Failed: ${(err as Error).message}`);
@@ -209,13 +176,7 @@ export function registerTaskCommands(program: Command) {
           process.exit(1);
         }
 
-        const active = [
-          "setting_up",
-          "agent_running",
-          "needs_input",
-          "agent_done",
-          "preview_live",
-        ];
+        const active = ["setting_up", "agent_running", "needs_input", "agent_done", "preview_live"];
 
         if (active.includes(match.status)) {
           console.log(`Aborting agent...`);
