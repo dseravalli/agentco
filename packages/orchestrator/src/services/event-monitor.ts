@@ -1,5 +1,9 @@
+import type {
+  Event as OpenCodeEvent,
+  PermissionRequest,
+  QuestionRequest,
+} from "@opencode-ai/sdk/v2";
 import type { TaskStatus, WSEvent } from "../types.js";
-import type { OpenCodeQuestion } from "./opencode.js";
 import * as logger from "../lib/log.js";
 
 type EventCallback = (event: WSEvent) => void;
@@ -24,13 +28,8 @@ export function broadcast(event: WSEvent): void {
 export interface StatusChangeEvent {
   status: TaskStatus;
   agentMode?: string;
-  permission?: {
-    id: string;
-    title: string;
-    sessionID: string;
-    metadata: Record<string, unknown>;
-  };
-  question?: OpenCodeQuestion;
+  permission?: PermissionRequest;
+  question?: QuestionRequest;
   error?: string;
 }
 
@@ -94,8 +93,9 @@ async function startEventLoop(
           if (!dataLine) continue;
 
           try {
-            const data = JSON.parse(dataLine.slice(5).trim());
-            handleSSEEvent(data, taskId, onStatusChange);
+            const raw: unknown = JSON.parse(dataLine.slice(5).trim());
+            if (!isOpenCodeEvent(raw)) continue;
+            handleSSEEvent(raw, taskId, onStatusChange);
           } catch {
             // Malformed event, skip
           }
@@ -119,11 +119,14 @@ async function startEventLoop(
   }
 }
 
-// Track port per task so we can fetch questions
-const taskPorts = new Map<string, number>();
-
-export function setTaskPort(taskId: string, port: number): void {
-  taskPorts.set(taskId, port);
+function isOpenCodeEvent(data: unknown): data is OpenCodeEvent {
+  return (
+    typeof data === "object" &&
+    data !== null &&
+    "type" in data &&
+    typeof (data as Record<string, unknown>).type === "string" &&
+    "properties" in data
+  );
 }
 
 // Track the last-seen agent mode per task so we only emit on change
@@ -134,91 +137,80 @@ export function clearTaskAgentMode(taskId: string): void {
 }
 
 // SSE events worth logging at info level (status-changing or user-facing)
-const SSE_INFO_EVENTS = new Set([
+const SSE_INFO_EVENTS = new Set<OpenCodeEvent["type"]>([
   "session.idle",
   "session.status",
   "session.error",
   "question.asked",
   "question.replied",
   "question.rejected",
-  "permission.updated",
+  "permission.asked",
   "permission.replied",
 ]);
 
 function handleSSEEvent(
-  data: Record<string, unknown>,
+  data: OpenCodeEvent,
   taskId: string,
   onStatusChange: (event: StatusChangeEvent) => void,
 ): void {
-  const eventType = data.type as string;
   const prefix = ssePrefix(taskId);
 
-  if (SSE_INFO_EVENTS.has(eventType)) {
-    logger.info(prefix, `event: ${eventType}`);
+  if (SSE_INFO_EVENTS.has(data.type)) {
+    logger.info(prefix, `event: ${data.type}`);
   } else {
-    logger.debug(prefix, `event: ${eventType}`);
+    logger.debug(prefix, `event: ${data.type}`);
   }
 
   broadcast({ type: "agent:event", taskId, event: data });
 
-  // Agent is asking questions (plan mode question tool)
-  if (eventType === "question.asked") {
-    const port = taskPorts.get(taskId);
-    if (port) {
-      fetchQuestions(port, taskId, onStatusChange);
-    } else {
-      logger.warn(prefix, "question.asked but no port registered");
-      onStatusChange({ status: "needs_input" });
-    }
+  // Agent is asking a question — payload carries the full question
+  if (data.type === "question.asked") {
+    const q = data.properties;
+    logger.info(prefix, `question: ${q.id} (${q.questions.length} sub-questions)`);
+    onStatusChange({ status: "needs_input", question: q });
   }
 
   // Question was answered — agent resumes
-  if (eventType === "question.replied") {
-    logger.info(prefix, "question answered, agent resuming");
+  if (data.type === "question.replied") {
     onStatusChange({ status: "agent_running" });
   }
 
-  // Agent is requesting permission (tool use, file write, etc.)
-  if (eventType === "permission.updated") {
-    const props = data.properties as {
-      id: string;
-      title: string;
-      sessionID: string;
-      metadata: Record<string, unknown>;
-    };
-    logger.info(prefix, `permission requested: ${props.title} (${props.id})`);
-    onStatusChange({
-      status: "needs_input",
-      permission: props,
-    });
+  // Agent is requesting permission — payload carries the full request
+  if (data.type === "permission.asked") {
+    const props = data.properties;
+    logger.info(prefix, `permission requested: ${props.permission} (${props.id})`);
+    onStatusChange({ status: "needs_input", permission: props });
   }
 
   // Permission was replied to — agent should resume
-  if (eventType === "permission.replied") {
-    logger.info(prefix, "permission replied, agent resuming");
+  if (data.type === "permission.replied") {
     onStatusChange({ status: "agent_running" });
   }
 
   // Session is idle — agent finished its current turn
-  if (eventType === "session.idle") {
-    const props = data.properties as { sessionID: string };
-    logger.info(prefix, `session idle: ${props.sessionID}`);
+  if (data.type === "session.idle") {
+    logger.info(prefix, `session idle: ${data.properties.sessionID}`);
     onStatusChange({ status: "agent_done" });
   }
 
   // Session error
-  if (eventType === "session.error") {
-    const props = data.properties as { error?: { data?: { message?: string } } };
-    const errorMsg = props.error?.data?.message ?? JSON.stringify(props.error);
+  if (data.type === "session.error") {
+    const error = data.properties.error;
+    let errorMsg: string;
+    if (error && "data" in error && "message" in error.data) {
+      errorMsg = String(error.data.message);
+    } else {
+      errorMsg = JSON.stringify(error);
+    }
     logger.error(prefix, `session error: ${errorMsg}`);
     onStatusChange({ status: "failed", error: errorMsg });
   }
 
   // Detect assistant activity — any assistant message means the agent is working
-  if (eventType === "message.updated") {
-    const props = data.properties as { info?: { role?: string; mode?: string } };
-    if (props.info?.role === "assistant") {
-      const newMode = props.info.mode;
+  if (data.type === "message.updated") {
+    const info = data.properties.info;
+    if (info.role === "assistant") {
+      const newMode = info.mode;
       const prevMode = lastSeenAgentMode.get(taskId);
       if (newMode && prevMode !== newMode) {
         lastSeenAgentMode.set(taskId, newMode);
@@ -229,38 +221,11 @@ function handleSSEEvent(
   }
 
   // Forward message updates as logs
-  if (eventType === "message.part.updated" || eventType === "message.updated") {
+  if (data.type === "message.part.updated" || data.type === "message.updated") {
     broadcast({
       type: "task:log",
       taskId,
       message: JSON.stringify(data),
     });
-  }
-}
-
-async function fetchQuestions(
-  port: number,
-  taskId: string,
-  onStatusChange: (event: StatusChangeEvent) => void,
-): Promise<void> {
-  const prefix = ssePrefix(taskId);
-  try {
-    const res = await fetch(`http://127.0.0.1:${port}/question`);
-    if (!res.ok) {
-      logger.warn(prefix, `failed to fetch questions: ${res.status}`);
-      onStatusChange({ status: "needs_input" });
-      return;
-    }
-    const questions: OpenCodeQuestion[] = await res.json();
-    if (questions.length > 0) {
-      const q = questions[0];
-      logger.info(prefix, `question: ${q.id} (${q.questions.length} sub-questions)`);
-      onStatusChange({ status: "needs_input", question: q });
-    } else {
-      onStatusChange({ status: "needs_input" });
-    }
-  } catch (err) {
-    logger.warn(prefix, `error fetching questions: ${err}`);
-    onStatusChange({ status: "needs_input" });
   }
 }

@@ -1,7 +1,10 @@
 import { execa } from "execa";
-import { createOpencodeClient } from "@opencode-ai/sdk";
+import { createOpencodeClient } from "@opencode-ai/sdk/v2";
 import { OPENCODE_BIN } from "@agentco/shared";
 import * as logger from "../lib/log.js";
+
+// Re-export SDK types used by other modules
+export type { FileDiff, QuestionRequest } from "@opencode-ai/sdk/v2";
 
 // Keyed by port number — unique per OpenCode instance even when
 // multiple instances share the same worktree (team mode).
@@ -142,9 +145,7 @@ function createClient(port: number) {
 
 export async function createSession(port: number, title: string): Promise<string> {
   const client = createClient(port);
-  const result = await client.session.create({
-    body: { title },
-  });
+  const result = await client.session.create({ title });
   if (!result.data) {
     throw new Error("Failed to create OpenCode session");
   }
@@ -160,98 +161,55 @@ export async function sendPrompt(
     agent?: string;
   },
 ): Promise<void> {
-  const body: Record<string, unknown> = {
-    parts: [{ type: "text", text }],
-  };
-  if (options?.model) body.model = options.model;
-  if (options?.agent) body.agent = options.agent;
-
-  // Use prompt_async so we don't block waiting for the agent to finish.
+  // Use promptAsync so we don't block waiting for the agent to finish.
   // We monitor progress via SSE events instead.
-  const res = await fetch(`http://127.0.0.1:${port}/session/${sessionId}/prompt_async`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
+  const client = createClient(port);
+  await client.session.promptAsync({
+    sessionID: sessionId,
+    parts: [{ type: "text", text }],
+    ...(options?.model && { model: options.model }),
+    ...(options?.agent && { agent: options.agent }),
   });
-
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new Error(`prompt_async failed (${res.status}): ${text}`);
-  }
 }
 
 export async function abortSession(port: number, sessionId: string): Promise<void> {
   const client = createClient(port);
-  await client.session.abort({
-    path: { id: sessionId },
-  });
+  await client.session.abort({ sessionID: sessionId });
 }
 
 export async function respondToPermission(
   port: number,
-  sessionId: string,
   permissionId: string,
   response: "once" | "always" | "reject",
 ): Promise<void> {
   const client = createClient(port);
-  await client.postSessionIdPermissionsPermissionId({
-    path: { id: sessionId, permissionID: permissionId },
-    body: { response },
+  await client.permission.reply({
+    requestID: permissionId,
+    reply: response,
   });
 }
 
-export interface OpenCodeQuestion {
-  id: string;
-  sessionID: string;
-  questions: Array<{
-    question: string;
-    header: string;
-    multiple?: boolean;
-    options: Array<{
-      label: string;
-      description: string;
-    }>;
-  }>;
-  tool: {
-    messageID: string;
-    callID: string;
-  };
-}
-
-export async function listQuestions(port: number): Promise<OpenCodeQuestion[]> {
-  const res = await fetch(`http://127.0.0.1:${port}/question`);
-  if (!res.ok) return [];
-  return res.json();
-}
-
-export interface FileDiff {
-  file: string;
-  before: string;
-  after: string;
-  additions: number;
-  deletions: number;
-}
-
-export async function getSessionDiff(port: number, sessionId: string): Promise<FileDiff[]> {
+export async function getSessionDiff(
+  port: number,
+  sessionId: string,
+): Promise<import("@opencode-ai/sdk/v2").FileDiff[]> {
   const client = createClient(port);
-  const result = await client.session.diff({
-    path: { id: sessionId },
-  });
-  return (result.data ?? []) as FileDiff[];
+  const result = await client.session.diff({ sessionID: sessionId });
+  return result.data ?? [];
 }
 
 export async function getSessionMessages(
   port: number,
   sessionId: string,
-): Promise<Array<{ info: Record<string, unknown>; parts: Array<Record<string, unknown>> }>> {
+): Promise<
+  Array<{
+    info: import("@opencode-ai/sdk/v2").Message;
+    parts: Array<import("@opencode-ai/sdk/v2").Part>;
+  }>
+> {
   const client = createClient(port);
-  const result = await client.session.messages({
-    path: { id: sessionId },
-  });
-  return (result.data ?? []) as Array<{
-    info: Record<string, unknown>;
-    parts: Array<Record<string, unknown>>;
-  }>;
+  const result = await client.session.messages({ sessionID: sessionId });
+  return result.data ?? [];
 }
 
 export async function answerQuestion(
@@ -259,14 +217,9 @@ export async function answerQuestion(
   questionId: string,
   answers: string[][],
 ): Promise<void> {
-  const res = await fetch(`http://127.0.0.1:${port}/question/${questionId}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ answers }),
+  const client = createClient(port);
+  await client.question.reply({
+    requestID: questionId,
+    answers,
   });
-
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new Error(`Failed to answer question (${res.status}): ${text}`);
-  }
 }

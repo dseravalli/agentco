@@ -1,5 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
-import type { FileDiff } from "./opencode.js";
+import type { FileDiff } from "@opencode-ai/sdk/v2";
 import * as logger from "../lib/log.js";
 
 export interface ActionItem {

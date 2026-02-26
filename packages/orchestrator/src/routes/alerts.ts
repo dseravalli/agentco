@@ -45,9 +45,7 @@ alertRoutes.post("/:id/respond", async (c) => {
   }
 
   const metadata = alert.metadata as Record<string, unknown> | null;
-
   const port = task.opencodePort;
-  const sessionId = task.opencodeSessionId;
 
   if (!port) {
     return c.json({ error: "Task has no active OpenCode instance" }, 400);
@@ -69,14 +67,13 @@ alertRoutes.post("/:id/respond", async (c) => {
     }
   } else if (alert.type === "needs_permission" || alert.type === "needs_input") {
     const permissionId = metadata?.permissionID as string | undefined;
-
-    if (!permissionId || !sessionId) {
-      return c.json({ error: "No permissionID or sessionID found" }, 400);
+    if (!permissionId) {
+      return c.json({ error: "No permissionID found on alert" }, 400);
     }
 
     try {
       const response = body.action === "approve" ? ("once" as const) : ("reject" as const);
-      await opencode.respondToPermission(port, sessionId, permissionId, response);
+      await opencode.respondToPermission(port, permissionId, response);
     } catch (err) {
       return c.json({ error: `Failed to respond: ${String(err)}` }, 500);
     }

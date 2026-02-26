@@ -11,7 +11,6 @@ import * as portAllocator from "./port-allocator.js";
 import {
   broadcast,
   monitorOpenCodeEvents,
-  setTaskPort,
   clearTaskAgentMode,
   type StatusChangeEvent,
 } from "./event-monitor.js";
@@ -224,7 +223,6 @@ export async function startTask(taskId: string): Promise<void> {
 
     // Monitor SSE events
     logd(taskId, `subscribing to SSE events`);
-    setTaskPort(taskId, opencodePort);
     const controller = await monitorOpenCodeEvents(opencodePort, taskId, buildEventHandler(taskId));
 
     eventControllers.set(taskId, controller);
@@ -456,7 +454,8 @@ function buildEventHandler(taskId: string) {
     }
 
     if (event.status === "needs_input" && event.permission) {
-      createAlert(taskId, "needs_permission", event.permission.title, {
+      const desc = `${event.permission.permission}: ${event.permission.patterns.join(", ")}`;
+      createAlert(taskId, "needs_permission", desc, {
         permissionID: event.permission.id,
         sessionID: event.permission.sessionID,
         ...event.permission.metadata,
@@ -512,7 +511,6 @@ export async function reconnectActiveTasks(): Promise<void> {
         task.status === "agent_done" || task.status === "preview_live" ? "build" : "plan";
       taskAgentMode.set(task.id, mode);
 
-      setTaskPort(task.id, task.opencodePort);
       const controller = await monitorOpenCodeEvents(
         task.opencodePort,
         task.id,
