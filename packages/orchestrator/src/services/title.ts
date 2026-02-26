@@ -16,6 +16,7 @@ export async function generateTitle(description: string): Promise<string> {
       headers: {
         "Content-Type": "application/json",
         "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
         model: MODEL,
