@@ -33,6 +33,7 @@ CREATE TABLE `tasks` (
 	`opencode_session_id` text,
 	`dev_preview_port` integer,
 	`database_name` text,
+	`model` text,
 	`pr_url` text,
 	`error` text,
 	`created_at` text DEFAULT (datetime('now')),

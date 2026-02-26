@@ -1,13 +1,9 @@
 export type {
   TaskStatus,
-  TaskMode,
-  TeamMemberRole,
-  TeamMemberStatus,
   AlertType,
   PortRanges,
   Project,
   Task,
-  TeamMember,
   Alert,
   WSEvent,
 } from "@agentco/shared";
@@ -17,14 +13,6 @@ export { PORT_RANGES, ORCHESTRATOR_PORT } from "@agentco/shared";
 export type AlertPayload = Alert;
 
 import type { Alert } from "@agentco/shared";
-
-export interface TeamPlan {
-  members: Array<{
-    label: string;
-    tasks: string[];
-    files: string[];
-  }>;
-}
 
 export interface AgentCoConfig {
   copyOnWorktree?: string[];

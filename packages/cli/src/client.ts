@@ -1,6 +1,6 @@
-import type { Project, Task, TaskMode, TeamMember } from "@agentco/shared";
+import type { Project, Task } from "@agentco/shared";
 
-export type { Project, Task, TaskMode, TeamMember };
+export type { Project, Task };
 
 const BASE_URL = process.env.AGENTCO_URL || "http://localhost:8080";
 
@@ -54,19 +54,11 @@ export async function listTasks(projectId?: string): Promise<Task[]> {
   return request(`/api/tasks${params}`);
 }
 
-export async function createTask(
-  projectId: string,
-  description: string,
-  mode?: TaskMode,
-): Promise<Task> {
+export async function createTask(projectId: string, description: string): Promise<Task> {
   return request("/api/tasks", {
     method: "POST",
-    body: JSON.stringify({ projectId, description, mode }),
+    body: JSON.stringify({ projectId, description }),
   });
-}
-
-export async function listTeamMembers(taskId: string): Promise<TeamMember[]> {
-  return request(`/api/tasks/${taskId}/members`);
 }
 
 export async function startTask(taskId: string): Promise<void> {

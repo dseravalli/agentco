@@ -1,11 +1,10 @@
 import { Hono } from "hono";
 import { eq } from "drizzle-orm";
-import { db, schema, findTask, findProject, findTeamMembers } from "../db/index.js";
+import { db, schema, findTask, findProject } from "../db/index.js";
 import slugify from "slugify";
 import { nanoid } from "nanoid";
 import * as lifecycle from "../services/lifecycle.js";
 import { generateTitle } from "../services/title.js";
-import type { TaskMode } from "../types.js";
 import * as logger from "../lib/log.js";
 
 export const taskRoutes = new Hono();
@@ -31,16 +30,10 @@ taskRoutes.post("/", async (c) => {
     projectId: string;
     description: string;
     model?: string;
-    mode?: TaskMode;
   }>();
 
   if (!body.projectId || !body.description) {
     return c.json({ error: "projectId and description are required" }, 400);
-  }
-
-  const mode = body.mode || "solo";
-  if (mode !== "solo" && mode !== "team") {
-    return c.json({ error: "mode must be 'solo' or 'team'" }, 400);
   }
 
   const project = findProject(eq(schema.projects.id, body.projectId));
@@ -58,7 +51,6 @@ taskRoutes.post("/", async (c) => {
       slug,
       title,
       description: body.description,
-      mode,
       model: body.model || null,
     })
     .returning()
@@ -71,12 +63,6 @@ taskRoutes.get("/:id", (c) => {
   const task = findTask(eq(schema.tasks.id, c.req.param("id")));
   if (!task) return c.json({ error: "Task not found" }, 404);
   return c.json(task);
-});
-
-taskRoutes.get("/:id/members", (c) => {
-  const task = findTask(eq(schema.tasks.id, c.req.param("id")));
-  if (!task) return c.json({ error: "Task not found" }, 404);
-  return c.json(findTeamMembers(task.id));
 });
 
 taskRoutes.post("/:id/start", async (c) => {
@@ -115,8 +101,6 @@ taskRoutes.post("/:id/retry", async (c) => {
   } catch {
     // Best effort
   }
-
-  db.delete(schema.teamMembers).where(eq(schema.teamMembers.taskId, task.id)).run();
 
   db.update(schema.tasks)
     .set({
@@ -180,7 +164,6 @@ taskRoutes.delete("/:id", async (c) => {
     }
   }
 
-  db.delete(schema.teamMembers).where(eq(schema.teamMembers.taskId, task.id)).run();
   db.delete(schema.alerts).where(eq(schema.alerts.taskId, task.id)).run();
   db.delete(schema.tasks).where(eq(schema.tasks.id, task.id)).run();
 

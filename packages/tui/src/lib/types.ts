@@ -1,12 +1,1 @@
-export type {
-  TaskStatus,
-  TaskMode,
-  TeamMemberRole,
-  TeamMemberStatus,
-  AlertType,
-  Project,
-  Task,
-  TeamMember,
-  Alert,
-  WSEvent,
-} from "@agentco/shared";
+export type { TaskStatus, AlertType, Project, Task, Alert, WSEvent } from "@agentco/shared";

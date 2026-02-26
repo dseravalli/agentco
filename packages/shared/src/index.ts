@@ -17,12 +17,6 @@ export type TaskStatus =
   | "failed"
   | "aborted";
 
-export type TaskMode = "solo" | "team";
-
-export type TeamMemberRole = "leader" | "member";
-
-export type TeamMemberStatus = "pending" | "starting" | "running" | "idle" | "failed";
-
 export type AlertType =
   | "needs_permission"
   | "needs_input"
@@ -65,7 +59,6 @@ export interface Task {
   slug: string;
   title: string;
   description: string;
-  mode: TaskMode;
   model: string | null;
   status: TaskStatus;
   branchName: string | null;
@@ -78,19 +71,6 @@ export interface Task {
   error: string | null;
   createdAt: string;
   updatedAt: string;
-}
-
-export interface TeamMember {
-  id: string;
-  taskId: string;
-  role: TeamMemberRole;
-  label: string;
-  opencodePort: number | null;
-  opencodeSessionId: string | null;
-  status: TeamMemberStatus;
-  assignedTasks: string[] | null;
-  assignedFiles: string[] | null;
-  createdAt: string;
 }
 
 export interface Alert {
@@ -110,11 +90,4 @@ export type WSEvent =
   | { type: "task:title_changed"; taskId: string; title: string }
   | { type: "task:alert"; taskId: string; alert: Alert }
   | { type: "task:log"; taskId: string; message: string }
-  | { type: "agent:event"; taskId: string; event: unknown }
-  | {
-      type: "team:member_status";
-      taskId: string;
-      memberId: string;
-      label: string;
-      status: TeamMemberStatus;
-    };
+  | { type: "agent:event"; taskId: string; event: unknown };

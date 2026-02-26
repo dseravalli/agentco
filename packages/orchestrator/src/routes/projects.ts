@@ -63,7 +63,6 @@ projectRoutes.delete("/:id", (c) => {
 
   const tasks = db.select().from(schema.tasks).where(eq(schema.tasks.projectId, project.id)).all();
   for (const task of tasks) {
-    db.delete(schema.teamMembers).where(eq(schema.teamMembers.taskId, task.id)).run();
     db.delete(schema.alerts).where(eq(schema.alerts.taskId, task.id)).run();
   }
   db.delete(schema.tasks).where(eq(schema.tasks.projectId, project.id)).run();

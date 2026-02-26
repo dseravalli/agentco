@@ -1,8 +1,7 @@
 import { Hono } from "hono";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 import { db, schema, findAlert, findTask } from "../db/index.js";
 import * as opencode from "../services/opencode.js";
-import * as logger from "../lib/log.js";
 
 export const alertRoutes = new Hono();
 
@@ -46,26 +45,9 @@ alertRoutes.post("/:id/respond", async (c) => {
   }
 
   const metadata = alert.metadata as Record<string, unknown> | null;
-  const teamMemberId = metadata?.teamMemberId as string | undefined;
 
-  // Resolve the correct port and session — team members store these on the
-  // team_members row, not on the task itself.
-  let port: number | null = task.opencodePort;
-  let sessionId: string | null = task.opencodeSessionId;
-
-  if (teamMemberId) {
-    const member = db
-      .select()
-      .from(schema.teamMembers)
-      .where(and(eq(schema.teamMembers.taskId, task.id), eq(schema.teamMembers.id, teamMemberId)))
-      .get();
-
-    if (member) {
-      port = member.opencodePort;
-      sessionId = member.opencodeSessionId;
-      logger.debug("[alerts]", `resolved team member "${member.label}" port=${port}`);
-    }
-  }
+  const port = task.opencodePort;
+  const sessionId = task.opencodeSessionId;
 
   if (!port) {
     return c.json({ error: "Task has no active OpenCode instance" }, 400);
